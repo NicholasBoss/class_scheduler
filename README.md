@@ -1,0 +1,2 @@
+### Class Scheduler
+This scheduler allows a student to create events in Google Calendar. This can help students manage their time effectively by scheduling study sessions, classes, and other important activities.
