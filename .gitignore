@@ -2,4 +2,6 @@ __pycache__/
 .venv/
 .env
 credentials.json
+credentials2.json
 token.json
+./temp.py

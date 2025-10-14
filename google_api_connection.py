@@ -127,6 +127,8 @@ def update_event(event_id, updated_event_details):
     
     try:
         service = build("calendar", "v3", credentials=creds)
+        print(f"Updating event ID: {event_id}")
+        print(f"Updated event details: {updated_event_details}")
         event = service.events().update(
             calendarId="primary", 
             eventId=event_id, 
@@ -197,6 +199,60 @@ def delete_recurring_series(event_id):
     except HttpError as error:
         print(f"An error occurred while deleting recurring series: {error}")
         return False
+    
+def get_event_occurrences(event_id):
+    """Retrieves occurrences of a recurring event from the user's primary calendar.
+    
+    Args:
+        event_id (str): The ID of any event in the recurring series.
+    
+    Returns:
+        list: List of occurrence start times, or None if failed.
+    """
+    creds = authenticate_user()
+    
+    try:
+        service = build("calendar", "v3", credentials=creds)
+        
+        # First, get the event to check if it's part of a recurring series
+        event = service.events().get(calendarId="primary", eventId=event_id).execute()
+        
+        # Check if this event has a recurring event ID (meaning it's part of a series)
+        if 'recurringEventId' in event:
+            master_event_id = event['recurringEventId']
+            print(f"Master Event ID: {master_event_id}")
+        elif 'recurrence' in event:
+            master_event_id = event_id
+            print(f"The provided event ID is the master event ID: {master_event_id}")
+        else:
+            print("The provided event ID does not belong to a recurring series.")
+            return None
+        
+        # Now, retrieve all instances of the recurring event
+        now = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+        events_result = (
+            service.events()
+            .list(
+                calendarId="primary",
+                timeMin=now,
+                singleEvents=True,
+                orderBy="startTime",
+                q=master_event_id  # Filter by master event ID
+            )
+            .execute()
+        )
+        events = events_result.get("items", [])
+        print(f"Found {len(events)} occurrences.")
+        occurrences = []
+        for evt in events:
+            if 'recurringEventId' in evt and evt['recurringEventId'] == master_event_id:
+                start = evt["start"].get("dateTime", evt["start"].get("date"))
+                occurrences.append((evt['id'], start))
+        
+        return occurrences
+    except HttpError as error:
+        print(f"An error occurred while retrieving occurrences: {error}")
+        return None
 
 
 if __name__ == "__main__":
