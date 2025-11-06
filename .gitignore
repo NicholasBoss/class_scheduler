@@ -4,4 +4,6 @@ __pycache__/
 credentials.json
 credentials2.json
 token.json
-./temp.py
+frontend/node_modules/
+backend/node_modules/
+node_modules/

@@ -10,14 +10,14 @@ This scheduler allows a student to create events in Google Calendar. This can he
    Navigate to the project directory, create a virtual environment, and install the required Python packages:
    ```bash
    cd class-scheduler
-   python -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
    pip install -r requirements.txt
    ```
 3. **Set Up Google Calendar API:**
    
 4. **Run the Application:**
-   Start the Streamlit application:
+   Start the application:
    ```bash
-   streamlit run scheduler.py
+   pnpm run start
    ```

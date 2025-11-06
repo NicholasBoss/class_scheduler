@@ -1,0 +1,1139 @@
+/* ============================================
+   BASE STYLES - Mobile First (Mobile View)
+   ============================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  background-color: #f5f5f5;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ============================================
+   LOADING STATE
+   ============================================ */
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 20px;
+  color: #666;
+}
+
+/* ============================================
+   LOGIN PAGE - Mobile
+   ============================================ */
+
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+.login-box {
+  background: white;
+  padding: 30px 20px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-box h1 {
+  margin-bottom: 10px;
+  color: #333;
+  font-size: 24px;
+}
+
+.login-box p {
+  margin-bottom: 30px;
+  color: #666;
+  font-size: 14px;
+}
+
+.google-login-button {
+  display: inline-block;
+  width: 100%;
+  padding: 12px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.google-login-button:hover {
+  background-color: #f9f9f9;
+  border-color: #999;
+}
+
+/* ============================================
+   DASHBOARD - Mobile
+   ============================================ */
+
+.dashboard {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 150px;
+}
+
+.header-left .logo {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+}
+
+.dashboard-header h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.user-info span {
+  font-size: 13px;
+}
+
+.logout-btn {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid white;
+  padding: 8px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.logout-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.tabs {
+  display: flex;
+  gap: 0;
+  padding: 10px 20px;
+  border-bottom: 1px solid #ddd;
+  background-color: white;
+  overflow-x: auto;
+}
+
+.tab {
+  padding: 10px 15px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: #667eea;
+}
+
+.tab.active {
+  border-bottom-color: #667eea;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.tab-content {
+  padding: 20px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* ============================================
+   EVENT FORM - Mobile
+   ============================================ */
+
+.event-form {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.event-form h2 {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 18px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.date-range {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.classes-container {
+  margin: 30px 0;
+}
+
+/* ============================================
+   DASHBOARD CONTENT - Mobile
+   ============================================ */
+
+.dashboard-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.create-section {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.create-section h2 {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 18px;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 10px;
+}
+
+.events-section {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+}
+
+.events-section h2 {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 18px;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 10px;
+}
+
+.no-events {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.no-events p {
+  font-size: 16px;
+  color: #666;
+}
+
+.error {
+  background-color: #fee;
+  border-left: 4px solid #c33;
+  padding: 15px;
+  border-radius: 5px;
+  color: #c33;
+  margin: 10px 0;
+}
+
+/* ============================================
+   EVENTS TABLE - Mobile
+   ============================================ */
+
+.events-table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow-x: auto;
+  display: block;
+}
+
+.events-header {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  background-color: #f9f9f9;
+  padding: 15px;
+  border-bottom: 2px solid #ddd;
+  font-weight: 600;
+  color: #333;
+  font-size: 12px;
+}
+
+.events-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+}
+
+.events-row:last-child {
+  border-bottom: none;
+}
+
+.events-row:hover {
+  background-color: #f9f9f9;
+}
+
+.col-class,
+.col-time,
+.col-days,
+.col-location,
+.col-dates,
+.col-actions {
+  word-wrap: break-word;
+}
+
+.col-class {
+  font-weight: 600;
+  color: #667eea;
+}
+
+.col-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-edit,
+.btn-delete {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-edit {
+  background-color: #667eea;
+  color: white;
+}
+
+.btn-edit:hover {
+  background-color: #5568d3;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-delete {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.btn-delete:hover {
+  background-color: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+}
+
+/* ============================================
+   LOCATION LINKS - Mobile
+   ============================================ */
+
+.col-location a {
+  color: #667eea;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.col-location a:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+
+/* ============================================
+   CLASS FORM - Mobile
+   ============================================ */
+
+.class-form {
+  background: #f9f9f9;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #667eea;
+}
+
+.class-form h3 {
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 16px;
+}
+
+.days-select {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.days-select label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: normal;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.days-select input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #667eea;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 20px;
+}
+
+.submit-btn:hover {
+  background-color: #5568d3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.class-form {
+  background: #f9f9f9;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #667eea;
+}
+
+.class-form h3 {
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 15px;
+}
+
+.days-select {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.days-select label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.days-select input[type="checkbox"] {
+  width: auto;
+  margin-right: 5px;
+  cursor: pointer;
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 5px;
+  font-size: 14px;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* ============================================
+   EVENT LIST - Mobile
+   ============================================ */
+
+.event-list {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.event-list h2 {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 18px;
+}
+
+.no-events {
+  text-align: center;
+  padding: 30px 20px;
+  background: white;
+  border-radius: 10px;
+  color: #666;
+  font-size: 14px;
+}
+
+.events-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.events-table thead {
+  background-color: #f5f5f5;
+}
+
+.events-table th {
+  padding: 12px 8px;
+  text-align: left;
+  color: #333;
+  font-weight: 600;
+  border-bottom: 2px solid #ddd;
+}
+
+.events-table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid #eee;
+  color: #666;
+  word-break: break-word;
+}
+
+.events-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+.delete-btn {
+  background-color: #ff4757;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.delete-btn:hover {
+  background-color: #ff3838;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(255, 71, 87, 0.3);
+}
+
+/* ============================================
+   MODAL - Edit Event
+   ============================================ */
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+  overflow: auto;
+}
+
+.modal-content {
+  background-color: white;
+  margin: 5% auto;
+  padding: 20px;
+  border-radius: 8px;
+  width: 95%;
+  max-width: 500px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #667eea;
+}
+
+.modal-header h2 {
+  color: #333;
+  font-size: 20px;
+  margin: 0;
+}
+
+.close {
+  color: #999;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.close:hover,
+.close:focus {
+  color: #333;
+}
+
+#editForm .form-group {
+  margin-bottom: 15px;
+}
+
+#editForm label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+#editForm input,
+#editForm select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+#editForm input:focus,
+#editForm select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.modal-buttons button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-buttons .submit-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.modal-buttons .submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.modal-buttons .cancel-btn {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.modal-buttons .cancel-btn:hover {
+  background-color: #e0e0e0;
+}
+
+/* ============================================
+   INFO MESSAGES
+   ============================================ */
+
+.info-message {
+  background-color: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  border-radius: 5px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.info-message p {
+  margin: 0;
+  color: #1565c0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ============================================
+   DELETE MODAL - Delete Options
+   ============================================ */
+
+.delete-modal-content {
+  max-width: 500px;
+}
+
+.delete-warning {
+  color: #d32f2f;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0 0 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.event-summary {
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-left: 4px solid #667eea;
+}
+
+.event-summary p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.event-summary div {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.delete-class-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 20px 0;
+}
+
+.delete-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.delete-option {
+  flex: 1;
+}
+
+.delete-option-btn {
+  width: 100%;
+  padding: 15px;
+  border: 2px solid #e0e0e0;
+  background-color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.delete-option-btn:hover {
+  border-color: #667eea;
+  background-color: #f5f5f5;
+}
+
+.delete-option-btn.single-btn:hover {
+  border-color: #2196f3;
+  background-color: #e3f2fd;
+}
+
+.delete-option-btn.all-btn:hover {
+  border-color: #d32f2f;
+  background-color: #fde8e8;
+}
+
+.btn-icon {
+  font-size: 20px;
+}
+
+.btn-text {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.btn-desc {
+  font-size: 12px;
+  color: #666;
+  font-weight: 400;
+}
+
+.delete-modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 15px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.delete-modal-buttons button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.cancel-btn {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.cancel-btn:hover {
+  background-color: #d0d0d0;
+}
+
+.delete-btn {
+  background-color: #d32f2f;
+  color: white;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background-color: #b71c1c;
+}
+
+.delete-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ============================================
+   OCCURRENCE SELECTION MODAL
+   ============================================ */
+
+.occurrences-selection {
+  margin: 20px 0;
+}
+
+.occurrences-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 5px;
+}
+
+.occurrences-header strong {
+  font-size: 14px;
+  color: #333;
+}
+
+.selection-info {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.occurrences-list-modal {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 5px;
+  margin-bottom: 15px;
+}
+
+.occurrence-item-modal {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.occurrence-item-modal:last-child {
+  border-bottom: none;
+}
+
+.occurrence-item-modal:hover {
+  background-color: #f9f9f9;
+}
+
+.occurrence-item-modal.selected {
+  background-color: #e3f2fd;
+}
+
+.occurrence-item-modal input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
+.occurrence-date {
+  font-size: 14px;
+  color: #333;
+  flex: 1;
+}
+
+/* Custom Time Styles */
+.time-slot-container {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.time-slot-container select {
+  flex: 1;
+  width: auto;
+}
+
+.custom-time-btn {
+  padding: 10px 15px;
+  background-color: #667eea;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 0.3s ease;
+}
+
+.custom-time-btn:hover {
+  background-color: #5568d3;
+}
+
+.custom-time-form {
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 15px;
+  margin-top: 10px;
+}
+
+.custom-time-form .form-group {
+  margin-bottom: 15px;
+}
+
+.custom-time-form input[type="time"] {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.save-custom-time-btn,
+.cancel-custom-time-btn {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  margin-right: 10px;
+  transition: background-color 0.3s ease;
+}
+
+.save-custom-time-btn {
+  background-color: #4caf50;
+  color: white;
+}
+
+.save-custom-time-btn:hover {
+  background-color: #45a049;
+}
+
+.cancel-custom-time-btn {
+  background-color: #f44336;
+  color: white;
+}
+
+.cancel-custom-time-btn:hover {
+  background-color: #da190b;
+}
+
+/* Location Input Group Styles */
+.location-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.location-form-simple,
+.location-form-manual {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.location-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.location-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.location-row label {
+  display: block;
+  margin-bottom: 0;
+  color: #333;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.location-row select,
+.location-row input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.location-row select:focus,
+.location-row input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.location-form-manual input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.toggle-location-btn {
+  padding: 8px 12px;
+  background-color: #f0f0f0;
+  color: #667eea;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.toggle-location-btn:hover {
+  background-color: #e8e8e8;
+  border-color: #667eea;
+}

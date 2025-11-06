@@ -2,14 +2,39 @@ import streamlit as st
 import pandas as pd
 from google_api_connection_v2 import *
 from database_manager import *
+import requests
 
 st.set_page_config(page_title="Scheduler", page_icon="⏰")
 st.title("⏰ Scheduler")
 
-#  Create a button that allows user to authenticate with Google Calendar
-if st.button("Authenticate with Google Calendar"):
-    st.write("Authenticating...")
-    authenticate_user()
+# Initialize database
+init_database()
+
+# Check if user is authenticated
+if "user_id" not in st.session_state:
+    st.info("👤 Please log in to continue")
+    
+    # Show login button
+    if st.button("🔐 Login with Google"):
+        authenticate_user()
+    
+    # Try to restore authentication from Google redirect
+    code = st.query_params.get("code")
+    if code:
+        authenticate_user()
+    
+    st.stop()  # Stop execution until user authenticates
+
+# User is authenticated - show welcome message
+st.success(f"✅ Logged in as: **{st.session_state.get('name', 'User')}** ({st.session_state.get('email', 'email')})")
+
+# Logout button
+if st.button("🚪 Logout"):
+    st.session_state.clear()
+    st.success("Logged out successfully!")
+    st.rerun()
+
+st.divider()
 
 # create a tab that allows the user to select a semester (Fall, Winter, Spring) and then select a date range within that semester. The date range should be limited to the dates of the selected semester. For example, if the user selects Fall, the date range should be limited to September 1 to December 31. If the user selects Winter, the date range should be limited to January 1 to April 30. If the user selects Spring, the date range should be limited to April 1 to July 31.
 
@@ -180,8 +205,8 @@ with tabs[0]:
                             st.success(f"✅ Event created successfully!")
                             st.write(f"Event ID: `{event_id}`")
                             
-                            # Store in database
-                            if store_event_in_db(event_info):
+                            # Store in database with user_id
+                            if store_event_in_db(event_info, st.session_state.user_id):
                                 st.write("Event stored in local database.")
                             else:
                                 st.warning("Event already exists in database.")
@@ -192,15 +217,15 @@ with tabs[0]:
 with tabs[1]:
     st.header("📋 Manage Scheduled Events")
     
-    # Get all events from both session state and database
-    all_events = get_all_events()
+    # Get all events from both session state and database (filtered by current user)
+    all_events = get_all_events(user_id=st.session_state.user_id)
     
     if all_events:
         st.write("Here are your scheduled events:")
         
         # Show data source information
         session_count = len(st.session_state.get('scheduled_events', []))
-        db_count = len(get_events_from_db())
+        db_count = len(get_events_from_db(user_id=st.session_state.user_id))
         total_unique_count = len(all_events)
         
         col_info1, col_info2, col_info3 = st.columns(3)
@@ -233,10 +258,15 @@ with tabs[1]:
                 building = selected_event['location'][:3]
                 room = selected_event['location'][4:].strip()
                 campus_location = f"{building} {room}"
+            elif selected_event['location'][4] == ' ':
+                building = selected_event['location'][:4]
+                room = selected_event['location'][5:].strip()
+                campus_location = f"{building} {room}"
             else:
                 # st.write(f"--- no space found")
-                building = selected_event['location'][:3]
-                room = selected_event['location'][3:]
+                # check for letter-number combination
+                building = ''.join(filter(str.isalpha, selected_event['location']))
+                room = ''.join(filter(str.isdigit, selected_event['location']))
                 campus_location = f"{building} {room}"
             # st.write(f"**Location:** {building} {room}")
             campus_map_url = f"https://maps.byui.edu/interactive-map/index.html?building={building}&room={room}"
@@ -436,7 +466,7 @@ with tabs[1]:
                 if 'scheduled_events' in st.session_state:
                     synced_count = 0
                     for event in st.session_state.scheduled_events:
-                        if store_event_in_db(event):
+                        if store_event_in_db(event, st.session_state.user_id):
                             synced_count += 1
                     st.success(f"Synced {synced_count} events to database!")
                 else:
@@ -444,7 +474,7 @@ with tabs[1]:
         
         with col_data2:
             if st.button("📥 Load from Database", help="Load all events from database to session"):
-                db_events = get_events_from_db()
+                db_events = get_events_from_db(user_id=st.session_state.user_id)
                 if db_events:
                     st.session_state.scheduled_events = db_events
                     st.success(f"Loaded {len(db_events)} events from database!")
@@ -462,14 +492,14 @@ with tabs[1]:
                 st.write(f"- Database file: `{db_stats['database_file']}`")
                 st.write(f"- Database events: {db_stats['total_events']}")
                 st.write(f"- Session events: {len(session_events)}")
-                st.write(f"- Total unique events: {len(get_all_events())}")
+                st.write(f"- Total unique events: {len(get_all_events(user_id=st.session_state.user_id))}")
         
     else:
         st.info("No scheduled events found in session state or database.")
         st.write("Create some events in the 'Create' tab")
         
         # Show database status even when no events
-        db_events = get_events_from_db()
+        db_events = get_events_from_db(user_id=st.session_state.user_id)
         if db_events:
             st.info(f"Found {len(db_events)} events in database. Click 'Load from Database' above to load them.")
             if st.button("📥 Load Database Events"):

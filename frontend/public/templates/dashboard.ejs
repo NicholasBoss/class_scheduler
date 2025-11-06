@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Scheduler - Dashboard</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
+    <link rel="manifest" href="/images/site.webmanifest">
+    
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/larger.css">
+</head>
+<body>
+    <div id="root">
+        <div class="dashboard">
+            <!-- Header -->
+            <div class="dashboard-header">
+                <div class="header-left">
+                    <img src="/images/byui_class_scheduler_logo.png" alt="BYU-I Class Scheduler Logo" class="logo">
+                    <h1>Class Scheduler</h1>
+                </div>
+                <div class="user-info">
+                    <span id="userEmail" class="user-email">Loading...</span>
+                    <button id="logoutBtn" class="logout-btn">Logout</button>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="dashboard-content">
+                <!-- Create Event Form -->
+                <div class="create-section">
+                    <h2>Create New Schedule</h2>
+                    
+                    <form id="scheduleForm">
+                        <!-- Semester Selection -->
+                        <div class="form-group">
+                            <label for="semester">Semester</label>
+                            <select id="semester" name="semester" required>
+                                <option value="">Select Semester</option>
+                                <option value="Fall">Fall</option>
+                                <option value="Winter">Winter</option>
+                                <option value="Spring">Spring</option>
+                            </select>
+                        </div>
+
+                        <!-- Number of Classes -->
+                        <div class="form-group">
+                            <label for="numClasses">Number of Classes</label>
+                            <input type="number" id="numClasses" name="numClasses" min="1" max="10" value="1" required>
+                        </div>
+
+                        <!-- Date Range Info Message -->
+                        <div class="info-message">
+                            <p>📅 <strong>Fine-tune your dates:</strong> Adjust the start and end dates to match your semester. Classes will only occur on the selected days between these dates.</p>
+                        </div>
+
+                        <!-- Date Range -->
+                        <div class="date-range">
+                            <div class="form-group">
+                                <label for="beginDate">Start Date</label>
+                                <input type="date" id="beginDate" name="beginDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="endDate">End Date</label>
+                                <input type="date" id="endDate" name="endDate" required>
+                            </div>
+                        </div>
+
+                        <!-- Classes Container -->
+                        <div class="classes-container" id="classesContainer">
+                            <!-- Classes will be dynamically added here -->
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="submit-btn">Generate Schedule</button>
+                    </form>
+                </div>
+
+                <!-- Events List Section -->
+                <div class="events-section">
+                    <h2>Your Scheduled Classes</h2>
+                    <div id="eventListContainer">
+                        <div class="loading">Loading your events...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = '<%= apiBaseUrl %>';
+
+        // Valid building codes
+        const VALID_BUILDING_CODES = {
+            'KIM': 'Kimball',
+            'TAY': 'Taylor',
+            'SPO': 'Spori',
+            'ROM': 'Romney',
+            'SNO': 'Snow',
+            'HRT': 'Hart',
+            'BCTR': 'BYU-I Center',
+            'BEN': 'Benson',
+            'MC': 'Manwaring Center',
+            'STC': 'Science and Technology Center',
+            'SMI': 'Smith',
+            'HIN': 'Hinkley',
+            'RKS': 'Ricks',
+            'ETC': 'Engineering and Technology Center',
+            'AUS': 'Austin',
+            'CLK': 'Clarke'
+        };
+
+        // Validate location format and building code
+        function validateLocation(location) {
+            if (!location || location.trim() === '') {
+                return { valid: false, error: 'Location is required' };
+            }
+
+            const trimmed = location.trim().toUpperCase();
+            
+            // Parse location to extract building code
+            const parts = trimmed.split(/\s+/);
+            if (parts.length < 2) {
+                return { 
+                    valid: false, 
+                    error: `Invalid location format. Expected: "BUILDING ROOM" (e.g., "KIM 101")\n\nValid buildings: ${Object.keys(VALID_BUILDING_CODES).join(', ')}` 
+                };
+            }
+
+            const buildingCode = parts[0];
+            const room = parts.slice(1).join(' ');
+
+            if (!VALID_BUILDING_CODES[buildingCode]) {
+                return { 
+                    valid: false, 
+                    error: `Invalid building code: "${buildingCode}"\n\nValid buildings:\n${Object.entries(VALID_BUILDING_CODES).map(([code, name]) => `${code} - ${name}`).join('\n')}` 
+                };
+            }
+
+            if (!room || !/^\d+/.test(room)) {
+                return { 
+                    valid: false, 
+                    error: `Invalid room number. Format should be: "${buildingCode} ROOM_NUMBER"\n\nExample: "KIM 101"` 
+                };
+            }
+
+            return { 
+                valid: true, 
+                formatted: `${buildingCode} ${room}`,
+                building: VALID_BUILDING_CODES[buildingCode]
+            };
+        }
+
+        // Check if token is in URL (from OAuth callback)
+        const urlParams = new URLSearchParams(window.location.search);
+        const tokenFromUrl = urlParams.get('token');
+
+        if (tokenFromUrl) {
+            console.log('✓ Token found in URL from OAuth callback');
+            localStorage.setItem('token', tokenFromUrl);
+            
+            // Try to extract user info from token (JWT format)
+            try {
+                const payload = JSON.parse(atob(tokenFromUrl.split('.')[1]));
+                localStorage.setItem('user', JSON.stringify({
+                    account_id: payload.account_id,
+                    email: payload.email,
+                    name: payload.name
+                }));
+                console.log('✓ Stored token and user info from callback');
+            } catch (e) {
+                console.error('Could not parse token:', e);
+            }
+
+            // Clean URL to remove token parameter
+            window.history.replaceState({}, document.title, '/dashboard');
+        }
+
+        let token = localStorage.getItem('token');
+        let userData = JSON.parse(localStorage.getItem('user') || '{}');
+
+        console.log('Dashboard loaded');
+        console.log('Token from localStorage:', token ? '✓ Found' : '✗ Not found');
+        console.log('User data:', userData);
+
+        // Verify token exists and is valid
+        if (!token) {
+            console.log('✗ No token found, redirecting to login...');
+            window.location.href = '/login';
+        } else {
+            console.log('✓ Token found, validating...');
+            validateToken();
+        }
+
+        // Validate token with backend
+        async function validateToken() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    console.log('✗ Token invalid or expired');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                console.log('✓ Token is valid');
+            } catch (err) {
+                console.error('Token validation error:', err);
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = '/login';
+            }
+        }
+
+        // Set user email on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const userEmailEl = document.getElementById('userEmail');
+            if (userEmailEl && userData.email) {
+                userEmailEl.textContent = userData.email;
+                console.log('✓ User email set:', userData.email);
+            }
+            // Auto-select semester based on current date
+            autoSelectSemester();
+            // Load events when page loads
+            loadEvents();
+        });
+
+        const semesterDates = {
+            Fall: { start: '09-01', end: '12-31' },
+            Winter: { start: '01-01', end: '04-30' },
+            Spring: { start: '04-01', end: '07-31' }
+        };
+
+        // Auto-select semester based on current date
+        function autoSelectSemester() {
+            const today = new Date();
+            const month = today.getMonth() + 1; // 1-12
+            const day = today.getDate();
+            let selectedSemester = null;
+            let yearToUse = today.getFullYear();
+
+            // Determine semester based on date ranges
+            if (month === 9 || (month > 9) || (month === 1 && day < 1) || (month === 12 && day > 31)) {
+                // Fall: Sept 1 - Dec 31
+                if (month < 9) {
+                    yearToUse = today.getFullYear() - 1; // Before Sept, use previous year's fall
+                } else if (month > 12 || (month === 1)) {
+                    yearToUse = today.getFullYear(); // After Dec, use current year's fall (which is Sept of next year)
+                }
+                selectedSemester = 'Fall';
+            } else if ((month >= 1 && month <= 4) || (month === 4 && day <= 30)) {
+                // Winter: Jan 1 - Apr 30
+                if (month > 4 || (month === 4 && day > 30)) {
+                    yearToUse = today.getFullYear() + 1; // After Apr 30, use next year's winter
+                }
+                selectedSemester = 'Winter';
+            } else if ((month >= 4 && month <= 7) || (month === 7 && day <= 31)) {
+                // Spring: Apr 1 - Jul 31
+                if (month > 7 || (month === 7 && day > 31)) {
+                    yearToUse = today.getFullYear() + 1; // After Jul 31, use next year's spring
+                }
+                selectedSemester = 'Spring';
+            }
+
+            // Set the semester dropdown
+            if (selectedSemester) {
+                const semesterSelect = document.getElementById('semester');
+                semesterSelect.value = selectedSemester;
+                console.log(`✓ Auto-selected semester: ${selectedSemester}`);
+
+                // Trigger change event to populate dates
+                semesterSelect.dispatchEvent(new Event('change'));
+            }
+        }
+
+        // Get time slots based on selected days
+        function getTimeSlots(selectedDays) {
+            // If no days selected, return empty array
+            if (!selectedDays || selectedDays.length === 0) {
+                return [];
+            }
+
+            const hasTuesday = selectedDays.includes('Tuesday');
+            const hasThursday = selectedDays.includes('Thursday');
+            const hasMWF = selectedDays.some(day => ['Monday', 'Wednesday', 'Friday'].includes(day));
+
+            if ((hasTuesday || hasThursday) && !hasMWF) {
+                return [
+                    { value: '8:00 AM - 9:00 AM', label: '8:00 AM - 9:00 AM (1 hour)' },
+                    { value: '8:00 AM - 9:30 AM', label: '8:00 AM - 9:30 AM (1.5 hours)' },
+                    { value: '9:15 AM - 10:15 AM', label: '9:15 AM - 10:15 AM (1 hour)' },
+                    { value: '9:45 AM - 11:15 AM', label: '9:45 AM - 11:15 AM (1.5 hours)' },
+                    { value: '10:30 AM - 11:30 AM', label: '10:30 AM - 11:30 AM (1 hour)' },
+                    { value: '1:00 PM - 2:00 PM', label: '1:00 PM - 2:00 PM (1 hour)' },
+                    { value: '1:00 PM - 2:30 PM', label: '1:00 PM - 2:30 PM (1.5 hours)' },
+                    { value: '2:15 PM - 3:15 PM', label: '2:15 PM - 3:15 PM (1 hour)' },
+                    { value: '2:45 PM - 4:15 PM', label: '2:45 PM - 4:15 PM (1.5 hours)' },
+                    { value: '3:30 PM - 4:30 PM', label: '3:30 PM - 4:30 PM (1 hour)' }
+                ];
+            } else {
+                return [
+                    { value: '7:45 AM - 8:45 AM', label: '7:45 AM - 8:45 AM' },
+                    { value: '9:00 AM - 10:00 AM', label: '9:00 AM - 10:00 AM' },
+                    { value: '10:15 AM - 11:15 AM', label: '10:15 AM - 11:15 AM' },
+                    { value: '11:30 AM - 12:30 PM', label: '11:30 AM - 12:30 PM' },
+                    { value: '12:45 PM - 1:45 PM', label: '12:45 PM - 1:45 PM' },
+                    { value: '2:00 PM - 3:00 PM', label: '2:00 PM - 3:00 PM' },
+                    { value: '3:15 PM - 4:15 PM', label: '3:15 PM - 4:15 PM' },
+                    { value: '4:30 PM - 5:30 PM', label: '4:30 PM - 5:30 PM' }
+                ];
+            }
+        }
+
+        // Update time slots when days change
+        function updateTimeSlots(classIndex) {
+            const dayCheckboxes = document.querySelectorAll(`input[name="days${classIndex}"]:checked`);
+            const selectedDays = Array.from(dayCheckboxes).map(cb => cb.value);
+            const timeSlots = getTimeSlots(selectedDays);
+            const timeSelect = document.getElementById(`timeSlot${classIndex}`);
+            const currentValue = timeSelect.value;
+
+            console.log(`Updating time slots for class ${classIndex}. Selected days:`, selectedDays, 'Time slots:', timeSlots);
+
+            timeSelect.innerHTML = '<option value="">Select Days First, Then Choose Time</option>';
+            timeSlots.forEach(slot => {
+                const option = document.createElement('option');
+                option.value = slot.value;
+                option.textContent = slot.label;
+                timeSelect.appendChild(option);
+            });
+
+            if (currentValue && timeSlots.some(slot => slot.value === currentValue)) {
+                timeSelect.value = currentValue;
+            }
+        }
+
+        // Semester change handler
+        document.getElementById('semester').addEventListener('change', (e) => {
+            const sem = e.target.value;
+            const currentYear = new Date().getFullYear();
+            if (sem && semesterDates[sem]) {
+                document.getElementById('beginDate').value = `${currentYear}-${semesterDates[sem].start}`;
+                document.getElementById('endDate').value = `${currentYear}-${semesterDates[sem].end}`;
+            }
+        });
+
+        // Number of classes change handler
+        document.getElementById('numClasses').addEventListener('change', (e) => {
+            const numClasses = parseInt(e.target.value);
+            const container = document.getElementById('classesContainer');
+            container.innerHTML = '';
+
+            for (let i = 0; i < numClasses; i++) {
+                const classForm = document.createElement('div');
+                classForm.className = 'class-form';
+                classForm.innerHTML = `
+                    <h3>Class ${i + 1}</h3>
+                    
+                    <div class="form-group">
+                        <label for="className${i}">Class Name</label>
+                        <input type="text" id="className${i}" name="className${i}" placeholder="e.g., CSE 499" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Location</label>
+                        <div class="location-input-group">
+                            <div class="location-form-simple" id="locationSimple${i}">
+                                <div class="location-row">
+                                    <div>
+                                        <label for="buildingCode${i}">Building</label>
+                                        <select id="buildingCode${i}" name="buildingCode${i}">
+                                            <option value="">Select Building</option>
+                                            <option value="AUS">AUS - Austin</option>
+                                            <option value="BCTR">BCTR - BYU-I Center</option>
+                                            <option value="BEN">BEN - Benson</option>
+                                            <option value="CLK">CLK - Clarke</option>
+                                            <option value="ETC">ETC - Engineering and Technology Center</option>
+                                            <option value="HIN">HIN - Hinkley</option>
+                                            <option value="HRT">HRT - Hart</option>
+                                            <option value="KIM">KIM - Kimball</option>
+                                            <option value="MC">MC - Manwaring Center</option>
+                                            <option value="RKS">RKS - Ricks</option>
+                                            <option value="ROM">ROM - Romney</option>
+                                            <option value="SMI">SMI - Smith</option>
+                                            <option value="SNO">SNO - Snow</option>
+                                            <option value="SPO">SPO - Spori</option>
+                                            <option value="STC">STC - Science and Technology Center</option>
+                                            <option value="TAY">TAY - Taylor</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="roomNumber${i}">Room Number</label>
+                                        <input type="text" id="roomNumber${i}" name="roomNumber${i}" placeholder="e.g., 101">
+                                    </div>
+                                </div>
+                                <button type="button" class="toggle-location-btn" data-class-index="${i}">Or Enter Manually</button>
+                            </div>
+                            <div class="location-form-manual" id="locationManual${i}" style="display: none;">
+                                <input type="text" id="location${i}" name="location${i}" placeholder="e.g., KIM 101 or Room 101">
+                                <button type="button" class="toggle-location-btn" data-class-index="${i}">Use Dropdown</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Days of Week</label>
+                        <div class="days-select">
+                            <label><input type="checkbox" name="days${i}" value="Monday"> Monday</label>
+                            <label><input type="checkbox" name="days${i}" value="Tuesday"> Tuesday</label>
+                            <label><input type="checkbox" name="days${i}" value="Wednesday"> Wednesday</label>
+                            <label><input type="checkbox" name="days${i}" value="Thursday"> Thursday</label>
+                            <label><input type="checkbox" name="days${i}" value="Friday"> Friday</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="timeSlot${i}">Time Slot</label>
+                        <div class="time-slot-container">
+                            <select id="timeSlot${i}" name="timeSlot${i}" required>
+                                <option value="">Select Days First, Then Choose Time</option>
+                            </select>
+                            <button type="button" class="custom-time-btn" data-class-index="${i}">Custom Time</button>
+                        </div>
+                    </div>
+                    <div id="customTimeForm${i}" class="custom-time-form" style="display: none;">
+                        <div class="form-group">
+                            <label for="customStartTime${i}">Start Time</label>
+                            <input type="time" id="customStartTime${i}" name="customStartTime${i}">
+                        </div>
+                        <div class="form-group">
+                            <label for="customEndTime${i}">End Time</label>
+                            <input type="time" id="customEndTime${i}" name="customEndTime${i}">
+                        </div>
+                        <div class="form-group">
+                            <button type="button" class="save-custom-time-btn" data-class-index="${i}">Save Custom Time</button>
+                            <button type="button" class="cancel-custom-time-btn" data-class-index="${i}">Cancel</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(classForm);
+
+                // Attach location toggle listeners
+                const locationToggleButtons = classForm.querySelectorAll('.toggle-location-btn');
+                locationToggleButtons.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const classIdx = parseInt(e.target.dataset.classIndex);
+                        const simpleForm = document.getElementById(`locationSimple${classIdx}`);
+                        const manualForm = document.getElementById(`locationManual${classIdx}`);
+                        
+                        // Toggle visibility
+                        if (simpleForm.style.display !== 'none') {
+                            simpleForm.style.display = 'none';
+                            manualForm.style.display = 'block';
+                        } else {
+                            simpleForm.style.display = 'block';
+                            manualForm.style.display = 'none';
+                        }
+                    });
+                });
+
+                // Attach change listeners to day checkboxes
+                const dayCheckboxes = document.querySelectorAll(`input[name="days${i}"]`);
+                console.log(`Attaching listeners to ${dayCheckboxes.length} day checkboxes for class ${i}`);
+                dayCheckboxes.forEach((checkbox, idx) => {
+                    checkbox.addEventListener('change', (e) => {
+                        console.log(`Day checkbox ${idx} changed for class ${i}:`, e.target.value, e.target.checked);
+                        updateTimeSlots(i);
+                    });
+                });
+
+                // Attach listeners to custom time buttons
+                const customTimeBtn = classForm.querySelector('.custom-time-btn');
+                customTimeBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const classIdx = parseInt(e.target.dataset.classIndex);
+                    document.getElementById(`customTimeForm${classIdx}`).style.display = 'block';
+                    document.getElementById(`timeSlot${classIdx}`).parentElement.style.display = 'none';
+                });
+
+                const saveCustomTimeBtn = classForm.querySelector('.save-custom-time-btn');
+                saveCustomTimeBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const classIdx = parseInt(e.target.dataset.classIndex);
+                    const startTime = document.getElementById(`customStartTime${classIdx}`).value;
+                    const endTime = document.getElementById(`customEndTime${classIdx}`).value;
+
+                    if (!startTime || !endTime) {
+                        alert('Please fill in both start and end times');
+                        return;
+                    }
+
+                    // Convert 24-hour time format to 12-hour format with AM/PM
+                    const formatTime = (timeStr) => {
+                        const [hours, minutes] = timeStr.split(':');
+                        let hour = parseInt(hours);
+                        const period = hour >= 12 ? 'PM' : 'AM';
+                        if (hour > 12) hour -= 12;
+                        if (hour === 0) hour = 12;
+                        return `${hour}:${minutes} ${period}`;
+                    };
+
+                    const customTimeDisplay = `${formatTime(startTime)} - ${formatTime(endTime)}`;
+                    
+                    // Set the custom time in the select dropdown
+                    const timeSelect = document.getElementById(`timeSlot${classIdx}`);
+                    timeSelect.innerHTML = `<option value="${customTimeDisplay}" selected>${customTimeDisplay}</option>`;
+                    
+                    // Hide custom time form and show time slot selector
+                    document.getElementById(`customTimeForm${classIdx}`).style.display = 'none';
+                    document.getElementById(`timeSlot${classIdx}`).parentElement.style.display = 'flex';
+                });
+
+                const cancelCustomTimeBtn = classForm.querySelector('.cancel-custom-time-btn');
+                cancelCustomTimeBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const classIdx = parseInt(e.target.dataset.classIndex);
+                    document.getElementById(`customTimeForm${classIdx}`).style.display = 'none';
+                    document.getElementById(`timeSlot${classIdx}`).parentElement.style.display = 'flex';
+                });
+            }
+        });
+
+        // Form submission
+        document.getElementById('scheduleForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const numClasses = parseInt(document.getElementById('numClasses').value);
+            const beginDate = document.getElementById('beginDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            const events = [];
+            for (let i = 0; i < numClasses; i++) {
+                const className = document.getElementById(`className${i}`).value;
+                
+                // Get location from either dropdown or manual input
+                const buildingCode = document.getElementById(`buildingCode${i}`)?.value;
+                const roomNumber = document.getElementById(`roomNumber${i}`)?.value;
+                const manualLocation = document.getElementById(`location${i}`)?.value;
+                
+                // Determine which location was used
+                let location = '';
+                if (buildingCode && roomNumber) {
+                    location = `${buildingCode} ${roomNumber}`;
+                } else if (manualLocation) {
+                    location = manualLocation;
+                }
+                
+                const timeSlot = document.getElementById(`timeSlot${i}`).value;
+                const dayCheckboxes = document.querySelectorAll(`input[name="days${i}"]:checked`);
+                const days = Array.from(dayCheckboxes).map(cb => cb.value).join(',');
+
+                // Validate location
+                if (location) {
+                    const locationValidation = validateLocation(location);
+                    if (!locationValidation.valid) {
+                        alert(`Class ${i + 1}: ${locationValidation.error}`);
+                        return;
+                    }
+                    location_formatted = locationValidation.formatted;
+                } else {
+                    alert(`Class ${i + 1}: Please enter a location (either select building and room, or enter manually)`);
+                    return;
+                }
+
+                if (className && timeSlot && days) {
+                    events.push({
+                        class_name: className,
+                        location: location_formatted,
+                        time_slot: timeSlot,
+                        days,
+                        start_date: beginDate,
+                        end_date: endDate
+                    });
+                }
+            }
+
+            try {
+                for (const event of events) {
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    };
+
+                    // Note: Access token is stored on server-side now
+                    // Server will automatically use it for Google Calendar sync
+
+                    const response = await fetch(`${API_BASE_URL}/events`, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(event)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const createdEvent = await response.json();
+                    if (createdEvent.google_sync?.status === 'synced') {
+                        console.log('✓ Event synced to Google Calendar');
+                    } else if (createdEvent.google_sync?.error) {
+                        console.warn('⚠ Event created locally but Google Calendar sync pending:', createdEvent.google_sync.error);
+                    }
+                }
+                
+                alert('✓ Schedule created successfully! Events synced to Google Calendar.');
+                document.getElementById('scheduleForm').reset();
+                document.getElementById('classesContainer').innerHTML = '';
+                
+                // Reload events
+                await loadEvents();
+            } catch (err) {
+                console.error('Error creating schedule:', err);
+                alert('Failed to create schedule');
+            }
+        });
+
+        // Load events from API
+        async function loadEvents() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/events`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const events = await response.json();
+                console.log('Loaded events:', events);
+                
+                // Log deleted occurrences for debugging
+                events.forEach(event => {
+                    if (event.deleted_occurrences && event.deleted_occurrences.length > 0) {
+                        console.log(`Event ${event.event_id} (${event.class_name}) has ${event.deleted_occurrences.length} deleted occurrences:`, event.deleted_occurrences);
+                    }
+                });
+                
+                renderEventsList(events);
+            } catch (err) {
+                console.error('Error loading events:', err);
+                document.getElementById('eventListContainer').innerHTML = '<div class="error">Failed to load events</div>';
+            }
+        }
+
+        // Render events list
+        function renderEventsList(events) {
+            const container = document.getElementById('eventListContainer');
+            
+            if (events.length === 0) {
+                container.innerHTML = '<div class="no-events"><p>No classes scheduled yet. Create your first schedule above!</p></div>';
+                return;
+            }
+
+            let html = `
+                <div class="events-table">
+                    <div class="events-header">
+                        <div class="col-class">Class</div>
+                        <div class="col-time">Time</div>
+                        <div class="col-days">Days</div>
+                        <div class="col-location">Location</div>
+                        <div class="col-dates">Dates</div>
+                        <div class="col-actions">Actions</div>
+                    </div>
+            `;
+
+            events.forEach(event => {
+                html += `
+                    <div class="events-row">
+                        <div class="col-class">${event.class_name}</div>
+                        <div class="col-time">${event.time_slot}</div>
+                        <div class="col-days">${event.days}</div>
+                        <div class="col-location">${getLocationLink(event.location)}</div>
+                        <div class="col-dates">${formatDate(event.start_date)} to ${formatDate(event.end_date)}</div>
+                        <div class="col-actions">
+                            <button class="btn-edit" onclick="editEvent(${event.event_id}, event)">Edit</button>
+                            <button class="btn-delete" onclick="deleteEvent(${event.event_id}, event)">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        // Format date helper
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        // Parse location and create map URL
+        function getLocationLink(location) {
+            if (!location) return location;
+
+            let building = '';
+            let room = '';
+
+            // Try to parse building and room from location string
+            // Check if there's a space at position 3 (e.g., "HB 101")
+            if (location.length > 3 && location[3] === ' ') {
+                building = location.substring(0, 3);
+                room = location.substring(4).trim();
+            }
+            // Check if there's a space at position 4 (e.g., "CAMC 101")
+            else if (location.length > 4 && location[4] === ' ') {
+                building = location.substring(0, 4);
+                room = location.substring(5).trim();
+            }
+            // Try to split by letter-number combination
+            else {
+                building = location.replace(/[0-9]/g, '').trim();
+                room = location.replace(/[^0-9]/g, '').trim();
+            }
+
+            if (building && room) {
+                const mapUrl = `https://maps.byui.edu/interactive-map/index.html?building=${encodeURIComponent(building)}&room=${encodeURIComponent(room)}`;
+                return `<a href="${mapUrl}" target="_blank" title="Open on BYU-I Campus Map" style="color: #667eea; text-decoration: none; cursor: pointer;">${location} 🗺️</a>`;
+            }
+
+            return location;
+        }
+
+        // Edit event
+        async function editEvent(eventId, e) {
+            e.preventDefault();
+            
+            try {
+                // Fetch the event details
+                const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const event = await response.json();
+                openEditModal(event);
+            } catch (err) {
+                console.error('Error fetching event:', err);
+                alert('Failed to load event details');
+            }
+        }
+
+        // Open edit modal
+        function openEditModal(event) {
+            const modal = document.getElementById('editModal');
+            const form = document.getElementById('editForm');
+            
+            // Populate form with current values
+            form.dataset.eventId = event.event_id;
+            document.getElementById('editClassName').value = event.class_name;
+            document.getElementById('editLocation').value = event.location || '';
+            document.getElementById('editTimeSlot').value = event.time_slot;
+            document.getElementById('editStartDate').value = formatDateForInput(event.start_date);
+            document.getElementById('editEndDate').value = formatDateForInput(event.end_date);
+            
+            // Set checkboxes for days
+            const days = event.days.split(',').map(d => d.trim());
+            document.querySelectorAll('input[name="editDays"]').forEach(checkbox => {
+                checkbox.checked = days.includes(checkbox.value);
+            });
+            
+            modal.style.display = 'block';
+        }
+
+        // Close edit modal
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        // Format date for input field (YYYY-MM-DD)
+        function formatDateForInput(dateStr) {
+            const date = new Date(dateStr);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // Submit edit form
+        async function submitEditForm(e) {
+            e.preventDefault();
+
+            const form = document.getElementById('editForm');
+            const eventId = form.dataset.eventId;
+            const className = document.getElementById('editClassName').value;
+            const location = document.getElementById('editLocation').value;
+            const timeSlot = document.getElementById('editTimeSlot').value;
+            const startDate = document.getElementById('editStartDate').value;
+            const endDate = document.getElementById('editEndDate').value;
+            
+            const dayCheckboxes = document.querySelectorAll('input[name="editDays"]:checked');
+            const days = Array.from(dayCheckboxes).map(cb => cb.value).join(',');
+
+            if (!className || !timeSlot || !days || !startDate || !endDate) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        class_name: className,
+                        location,
+                        time_slot: timeSlot,
+                        days,
+                        start_date: startDate,
+                        end_date: endDate
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                alert('✓ Class updated successfully!');
+                closeEditModal();
+                await loadEvents();
+            } catch (err) {
+                console.error('Error updating event:', err);
+                alert('Failed to update class');
+            }
+        }
+
+        // Delete event - show modal with options
+        async function deleteEvent(eventId, e) {
+            e.preventDefault();
+            
+            try {
+                // Fetch event details to show in confirmation
+                const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.status === 401) {
+                    console.log('✗ Token expired, redirecting to login...');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const event = await response.json();
+                openDeleteModal(event);
+            } catch (err) {
+                console.error('Error fetching event:', err);
+                alert('Failed to load event details');
+            }
+        }
+
+        // Generate occurrences for an event
+        function generateOccurrences(event) {
+            const occurrencesList = [];
+            const daysMap = {
+                'Monday': 1,
+                'Tuesday': 2,
+                'Wednesday': 3,
+                'Thursday': 4,
+                'Friday': 5
+            };
+
+            const startDate = new Date(event.start_date);
+            const endDate = new Date(event.end_date);
+            const selectedDays = event.days.split(',').map(d => d.trim());
+            const selectedDayNumbers = selectedDays.map(day => daysMap[day]).filter(Boolean);
+            
+            // Get list of deleted dates for this event and normalize to YYYY-MM-DD format
+            const deletedDates = (event.deleted_occurrences || []).map(d => {
+                // Handle both ISO format (2025-11-26T07:00:00.000Z) and date format (2025-11-26)
+                return d.split('T')[0];
+            });
+
+            let currentDate = new Date(startDate);
+            while (currentDate <= endDate) {
+                const dayOfWeek = currentDate.getDay();
+                const dateString = currentDate.toISOString().split('T')[0];
+                
+                // Skip if this date is in the deleted occurrences list
+                if (!deletedDates.includes(dateString)) {
+                    if (selectedDayNumbers.includes(dayOfWeek === 0 ? 7 : dayOfWeek)) {
+                        occurrencesList.push({
+                            date: dateString,
+                            displayDate: currentDate.toLocaleDateString('en-US', { 
+                                weekday: 'long', 
+                                month: 'short', 
+                                day: 'numeric',
+                                year: 'numeric'
+                            }),
+                            id: `${event.event_id}_${dateString}`
+                        });
+                    }
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            return occurrencesList;
+        }
+
+        let currentDeleteEvent = null; // Store the current event being deleted
+
+        // Open delete confirmation modal
+        function openDeleteModal(event) {
+            const modal = document.getElementById('deleteModal');
+            
+            // Store event for later use
+            currentDeleteEvent = event;
+            modal.dataset.showOccurrences = 'false';
+            
+            // Show main delete options
+            showDeleteMainOptions(event);
+            
+            modal.style.display = 'block';
+        }
+
+        function showDeleteMainOptions(event) {
+            const modal = document.getElementById('deleteModal');
+            const body = document.querySelector('.delete-modal-body');
+            
+            body.innerHTML = `
+                <p class="delete-warning">⚠️ Are you sure you want to delete this class?</p>
+                
+                <div id="deleteEventDetails" class="event-summary">
+                    <p><strong>Location:</strong> ${event.location}</p>
+                    <p><strong>Time:</strong> ${event.time_slot}</p>
+                    <p><strong>Days:</strong> ${event.days}</p>
+                    <p><strong>Date Range:</strong> ${formatDate(event.start_date)} to ${formatDate(event.end_date)}</p>
+                </div>
+
+                <h3 id="deleteEventTitle" class="delete-class-name">${event.class_name}</h3>
+
+                <div class="delete-options">
+                    <div class="delete-option">
+                        <button class="delete-option-btn all-btn" onclick="performDeleteAll('${event.event_id}')">
+                            <span class="btn-icon">🗑️</span>
+                            <span class="btn-text">Delete All Occurrences</span>
+                            <span class="btn-desc">Removes entire series</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="delete-modal-buttons">
+                    <button type="button" class="cancel-btn" onclick="closeDeleteModal()">Cancel</button>
+                </div>
+            `;
+        }
+
+        // Show occurrence selection UI
+        function showDeleteOccurrencesSelection() {
+            if (!currentDeleteEvent) {
+                console.error('No event selected for deletion');
+                return;
+            }
+            
+            const event = currentDeleteEvent;
+            const occurrences = generateOccurrences(event);
+            const modal = document.getElementById('deleteModal');
+            const body = document.querySelector('.delete-modal-body');
+            
+            let occurrencesHtml = occurrences.map(occ => `
+                <div class="occurrence-item-modal" onclick="toggleOccurrenceCheckbox(event, '${occ.id}')">
+                    <input type="checkbox" class="occurrence-checkbox" data-id="${occ.id}" />
+                    <span class="occurrence-date">${occ.displayDate}</span>
+                </div>
+            `).join('');
+            
+            body.innerHTML = `
+                <p class="delete-warning">📅 Select specific occurrences to delete</p>
+                
+                <div class="event-summary">
+                    <div>${event.class_name}</div>
+                    <div>${event.time_slot}</div>
+                </div>
+
+                <div class="occurrences-selection">
+                    <div class="occurrences-header">
+                        <strong>${occurrences.length} Total Occurrences</strong>
+                        <span class="selection-info">
+                            <span id="selectedCount">0</span> selected
+                        </span>
+                    </div>
+
+                    <div class="occurrences-list-modal">
+                        ${occurrencesHtml}
+                    </div>
+
+                    <div class="delete-modal-buttons">
+                        <button type="button" class="cancel-btn" onclick="showDeleteMainOptionsBack()">
+                            Back
+                        </button>
+                        <button class="delete-btn" onclick="performDeleteSpecificOccurrences('${event.event_id}')" id="deleteSpecificBtn" disabled>
+                            Delete (<span id="deleteCount">0</span>)
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Add event listeners to checkboxes
+            document.querySelectorAll('.occurrence-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    updateOccurrenceCount();
+                });
+            });
+        }
+
+        // Toggle occurrence checkbox
+        function toggleOccurrenceCheckbox(event, id) {
+            // If clicking directly on the checkbox, let native behavior handle it
+            if (event.target.tagName === 'INPUT') {
+                return;
+            }
+            
+            // For clicking on the div/text, toggle the checkbox
+            const checkbox = document.querySelector(`input[data-id="${id}"]`);
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                updateOccurrenceCount();
+            }
+        }
+
+        // Update occurrence count display
+        function updateOccurrenceCount() {
+            const checked = document.querySelectorAll('.occurrence-checkbox:checked').length;
+            document.getElementById('selectedCount').textContent = checked;
+            document.getElementById('deleteCount').textContent = checked;
+            document.getElementById('deleteSpecificBtn').disabled = checked === 0;
+        }
+
+        // Show main delete options (back button)
+        function showDeleteMainOptionsBack() {
+            if (!currentDeleteEvent) {
+                console.error('No event found');
+                return;
+            }
+            showDeleteMainOptions(currentDeleteEvent);
+        }
+
+        // Perform delete all occurrences
+        async function performDeleteAll(eventId) {
+            if (!confirm('Are you sure you want to delete the entire series? This cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'X-Delete-Type': 'all'
+                    }
+                });
+
+                if (response.status === 401) {
+                    console.log('✗ Token expired, redirecting to login...');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    alert('Your session has expired. Please login again.');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    if (errorData.error && errorData.error.includes('Google Calendar')) {
+                        alert(`⚠️ Google Calendar sync failed: ${errorData.error}\n\nThe event was NOT deleted from the database to prevent data loss.\n\nPlease try to reconnect your Google Calendar from your account settings.`);
+                    } else {
+                        throw new Error(errorData.error || `HTTP ${response.status}`);
+                    }
+                    return;
+                }
+
+                alert('✓ All occurrences deleted!');
+                closeDeleteModal();
+                await loadEvents();
+            } catch (err) {
+                console.error('Error deleting event:', err);
+                alert('Failed to delete class: ' + err.message);
+            }
+        }
+
+        // Perform delete specific occurrences
+        async function performDeleteSpecificOccurrences(eventId) {
+            const checkedBoxes = document.querySelectorAll('.occurrence-checkbox:checked');
+            if (checkedBoxes.length === 0) {
+                alert('Please select at least one occurrence to delete');
+                return;
+            }
+
+            const datesToDelete = Array.from(checkedBoxes).map(box => box.dataset.id.split('_')[1]);
+            console.log('Deleting occurrences for event', eventId, ':', datesToDelete);
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/events/${eventId}/delete-occurrences`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ dates: datesToDelete })
+                });
+
+                console.log('Delete response status:', response.status);
+                const responseData = await response.json();
+                console.log('Delete response data:', responseData);
+
+                if (response.status === 401) {
+                    console.log('✗ Token expired, redirecting to login...');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    alert('Your session has expired. Please login again.');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = responseData;
+                    if (errorData.error && errorData.error.includes('Google Calendar')) {
+                        alert(`⚠️ Google Calendar sync failed: ${errorData.error}\n\nThe occurrences were NOT deleted from the database to prevent data loss.\n\nPlease try to reconnect your Google Calendar from your account settings.`);
+                    } else {
+                        throw new Error(errorData.error || `Failed to delete occurrences`);
+                    }
+                    return;
+                }
+
+                alert(`✓ Successfully deleted ${checkedBoxes.length} occurrence(s)!`);
+                closeDeleteModal();
+                await loadEvents();
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Failed to delete occurrences: ' + err.message);
+            }
+        }
+
+        // Close delete modal
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+        }
+
+        // Logout handler
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try {
+                await fetch(`${API_BASE_URL}/auth/logout`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            } catch (err) {
+                console.error('Logout error:', err);
+            }
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        });
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            document.getElementById('numClasses').dispatchEvent(new Event('change'));
+        });
+    </script>
+
+    <!-- Edit Event Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Class</h2>
+                <span class="close" onclick="closeEditModal()">&times;</span>
+            </div>
+
+            <form id="editForm" onsubmit="submitEditForm(event)">
+                <div class="form-group">
+                    <label for="editClassName">Class Name</label>
+                    <input type="text" id="editClassName" name="editClassName" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="editLocation">Location</label>
+                    <input type="text" id="editLocation" name="editLocation" placeholder="e.g., HB 101">
+                </div>
+
+                <div class="form-group">
+                    <label for="editTimeSlot">Time Slot</label>
+                    <select id="editTimeSlot" name="editTimeSlot" required>
+                        <option value="">Select Time Slot</option>
+                        <option value="7:45 AM - 8:45 AM">7:45 AM - 8:45 AM</option>
+                        <option value="9:00 AM - 10:00 AM">9:00 AM - 10:00 AM</option>
+                        <option value="10:15 AM - 11:15 AM">10:15 AM - 11:15 AM</option>
+                        <option value="11:30 AM - 12:30 PM">11:30 AM - 12:30 PM</option>
+                        <option value="12:45 PM - 1:45 PM">12:45 PM - 1:45 PM</option>
+                        <option value="2:00 PM - 3:00 PM">2:00 PM - 3:00 PM</option>
+                        <option value="3:15 PM - 4:15 PM">3:15 PM - 4:15 PM</option>
+                        <option value="4:30 PM - 5:30 PM">4:30 PM - 5:30 PM</option>
+                        <option value="8:00 AM - 9:00 AM">8:00 AM - 9:00 AM (1 hour)</option>
+                        <option value="8:00 AM - 9:30 AM">8:00 AM - 9:30 AM (1.5 hours)</option>
+                        <option value="9:15 AM - 10:15 AM">9:15 AM - 10:15 AM (1 hour)</option>
+                        <option value="9:45 AM - 11:15 AM">9:45 AM - 11:15 AM (1.5 hours)</option>
+                        <option value="10:30 AM - 11:30 AM">10:30 AM - 11:30 AM (1 hour)</option>
+                        <option value="1:00 PM - 2:00 PM">1:00 PM - 2:00 PM (1 hour)</option>
+                        <option value="1:00 PM - 2:30 PM">1:00 PM - 2:30 PM (1.5 hours)</option>
+                        <option value="2:15 PM - 3:15 PM">2:15 PM - 3:15 PM (1 hour)</option>
+                        <option value="2:45 PM - 4:15 PM">2:45 PM - 4:15 PM (1.5 hours)</option>
+                        <option value="3:30 PM - 4:30 PM">3:30 PM - 4:30 PM (1 hour)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Days of Week</label>
+                    <div class="days-select">
+                        <label><input type="checkbox" name="editDays" value="Monday"> Monday</label>
+                        <label><input type="checkbox" name="editDays" value="Tuesday"> Tuesday</label>
+                        <label><input type="checkbox" name="editDays" value="Wednesday"> Wednesday</label>
+                        <label><input type="checkbox" name="editDays" value="Thursday"> Thursday</label>
+                        <label><input type="checkbox" name="editDays" value="Friday"> Friday</label>
+                    </div>
+                </div>
+
+                <div class="date-range">
+                    <div class="form-group">
+                        <label for="editStartDate">Start Date</label>
+                        <input type="date" id="editStartDate" name="editStartDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEndDate">End Date</label>
+                        <input type="date" id="editEndDate" name="editEndDate" required>
+                    </div>
+                </div>
+
+                <div class="modal-buttons">
+                    <button type="submit" class="submit-btn">Save Changes</button>
+                    <button type="button" class="cancel-btn" onclick="closeEditModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Event Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content delete-modal-content">
+            <div class="modal-header">
+                <h2>Delete Class</h2>
+                <span class="close" onclick="closeDeleteModal()">&times;</span>
+            </div>
+
+            <div class="delete-modal-body">
+                <!-- Content will be inserted by JavaScript -->
+            </div>
+        </div>
+    </div>
+</body>
+</html>

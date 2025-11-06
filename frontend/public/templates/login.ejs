@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Scheduler - Login</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
+    <link rel="manifest" href="/images/site.webmanifest">
+    
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/larger.css">
+    <style>
+        .login-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .login-logo {
+            height: 80px;
+            width: auto;
+            object-fit: contain;
+            margin-bottom: 10px;
+        }
+        .login-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+        .loading-text {
+            display: none;
+            color: #667eea;
+            font-weight: 600;
+        }
+        .error-message {
+            display: none;
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 4px;
+            border-left: 4px solid #c33;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="login-container">
+            <div class="login-box">
+                <img src="/images/byui_class_scheduler_logo.png" alt="BYU-I Class Scheduler Logo" class="login-logo">
+                <h1>Class Scheduler</h1>
+                <p>Sign in with your Google account to manage your class schedule and sync with Google Calendar</p>
+                
+                <!-- Login Content -->
+                <div class="login-content">
+                    <button id="loginBtn" class="login-btn">Sign in with Google</button>
+                    <div id="loadingText" class="loading-text">Redirecting to Google...</div>
+                    <div id="errorMessage" class="error-message"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = '<%= apiBaseUrl %>';
+
+        console.log('Login page script loaded');
+        console.log('API_BASE_URL:', API_BASE_URL);
+
+        // Handle login button click
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            console.log('Login button clicked');
+            document.getElementById('loginBtn').disabled = true;
+            document.getElementById('loadingText').style.display = 'block';
+
+            try {
+                // Get OAuth URL from backend
+                const response = await fetch(`${API_BASE_URL}/auth/oauth-url`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('✓ Received OAuth URL');
+
+                // Redirect to Google OAuth
+                window.location.href = data.url;
+            } catch (err) {
+                console.error('✗ Login error:', err);
+                document.getElementById('loginBtn').disabled = false;
+                document.getElementById('loadingText').style.display = 'none';
+                
+                const errorDiv = document.getElementById('errorMessage');
+                errorDiv.textContent = `Login failed: ${err.message}`;
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        // Check if we're returning from OAuth callback with token
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        const error = urlParams.get('error');
+
+        if (error) {
+            console.error('OAuth error:', error);
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = `Login error: ${decodeURIComponent(error)}`;
+            errorDiv.style.display = 'block';
+        }
+
+        if (token) {
+            console.log('✓ Received token from callback, redirecting to dashboard');
+            // Redirect to dashboard with token
+            window.location.href = `/dashboard?token=${token}`;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BYU-I Class Scheduler</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
+    <link rel="manifest" href="/images/site.webmanifest">
+    
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/larger.css">
+    <style>
+        /* Landing Page Specific Styles */
+        .landing-container {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .landing-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .landing-header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .landing-logo {
+            height: 50px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .landing-header h1 {
+            font-size: 28px;
+            margin: 0;
+        }
+
+        .landing-header-right {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .landing-header a,
+        .landing-header button {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .landing-header a:hover,
+        .landing-header button:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .landing-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px 20px;
+            text-align: center;
+            background: linear-gradient(to bottom, #f5f5f5, #ffffff);
+        }
+
+        .landing-hero {
+            max-width: 600px;
+            margin-bottom: 40px;
+        }
+
+        .landing-hero h2 {
+            font-size: 42px;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .landing-hero p {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+            max-width: 900px;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 30px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+        }
+
+        .feature-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+
+        .feature-card h3 {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .landing-cta {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 14px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .cta-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .cta-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .cta-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .cta-secondary:hover {
+            background: #f0f0f0;
+        }
+
+        .landing-footer {
+            background: #333;
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+            margin-top: auto;
+        }
+
+        .landing-footer p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .landing-header {
+                padding: 15px 20px;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .landing-header h1 {
+                font-size: 22px;
+            }
+
+            .landing-hero h2 {
+                font-size: 32px;
+            }
+
+            .landing-hero p {
+                font-size: 16px;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .landing-content {
+                padding: 40px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="landing-container">
+        <!-- Header -->
+        <header class="landing-header">
+            <div class="landing-header-left">
+                <img src="/images/byui_class_scheduler_logo.png" alt="BYU-I Class Scheduler Logo" class="landing-logo">
+                <h1>Class Scheduler</h1>
+            </div>
+            <div class="landing-header-right">
+                <a href="/login" class="nav-link">Sign In</a>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="landing-content">
+            <div class="landing-hero">
+                <h2>Manage Your Class Schedule Effortlessly</h2>
+                <p>Create, organize, and sync your BYU-Idaho class schedule with Google Calendar. Stay on top of your academic life with our intuitive scheduling tool.</p>
+            </div>
+
+            <!-- Features -->
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📅</div>
+                    <h3>Easy Scheduling</h3>
+                    <p>Quickly add and manage multiple classes with automatic conflict detection and time slot management.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>Google Calendar Sync</h3>
+                    <p>Automatically synchronize your schedule with Google Calendar to keep everything in sync across devices.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎓</div>
+                    <h3>BYU-I Optimized</h3>
+                    <p>Built specifically for BYU-Idaho students with support for all campus buildings and room numbers.</p>
+                </div>
+            </div>
+
+            <!-- Call to Action -->
+            <div class="landing-cta">
+                <a href="/login" class="cta-button cta-primary">Get Started</a>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="landing-footer">
+            <p>&copy; 2025 BYU-Idaho Class Scheduler. All rights reserved.</p>
+        </footer>
+    </div>
+</body>
+</html>
