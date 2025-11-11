@@ -2,10 +2,80 @@ const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
 
-// Initialize Google Calendar API
-const calendar = google.calendar('v3');
+// Helper function to parse time in 12-hour format to 24-hour
+function parseTime12to24(timeStr) {
+    const regex = /(\d{1,2}):(\d{2})\s(AM|PM)/i;
+    const match = timeStr.trim().match(regex);
+    
+    if (!match) {
+        throw new Error(`Invalid time format: ${timeStr}`);
+    }
+    
+    let hours = parseInt(match[1]);
+    const minutes = match[2];
+    const period = match[3].toUpperCase();
+    
+    if (period === 'PM' && hours !== 12) {
+        hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+    }
+    
+    return `${String(hours).padStart(2, '0')}:${minutes}`;
+}
 
-// Get OAuth2 client for the user
+// Helper function to create a Date object in a specific timezone
+function createDateInTimezone(dateStr, timeStr, timezone) {
+    // Parse time string (12-hour format) to 24-hour format
+    const time24 = parseTime12to24(timeStr);
+    const [hours, minutes] = time24.split(':').map(Number);
+    
+    // Create date in UTC, but we'll adjust for timezone
+    // The dateStr is in YYYY-MM-DD format
+    const [year, month, day] = dateStr.split('-').map(Number);
+    
+    // Create a date object - this creates it in local time
+    const date = new Date(year, month - 1, day, hours, minutes, 0);
+    
+    // Now we need to adjust for timezone offset
+    // Get the offset for Denver time
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+    
+    // Create the same datetime and see what the UTC offset is
+    const tempDate = new Date(year, month - 1, day, hours, minutes, 0);
+    const parts = formatter.formatToParts(tempDate);
+    
+    // Get local time according to the formatter
+    let localYear, localMonth, localDay, localHour, localMinute, localSecond;
+    parts.forEach(part => {
+        if (part.type === 'year') localYear = parseInt(part.value);
+        if (part.type === 'month') localMonth = parseInt(part.value) - 1;
+        if (part.type === 'day') localDay = parseInt(part.value);
+        if (part.type === 'hour') localHour = parseInt(part.value);
+        if (part.type === 'minute') localMinute = parseInt(part.value);
+        if (part.type === 'second') localSecond = parseInt(part.value);
+    });
+    
+    // Calculate the offset
+    const utcDate = new Date(year, month - 1, day, hours, minutes, 0);
+    const offset = new Date(localYear, localMonth, localDay, localHour, localMinute, localSecond) - utcDate;
+    
+    // Adjust the date by the offset
+    const adjustedDate = new Date(tempDate.getTime() - offset);
+    
+    return adjustedDate;
+}
+
+// Get OAuth2 client for the user with Calendar scope
 async function getCalendarClient(userAccessToken) {
     const oauth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
@@ -22,14 +92,15 @@ async function getCalendarClient(userAccessToken) {
 async function createRecurringEvent(userAccessToken, eventDetails) {
     try {
         const auth = await getCalendarClient(userAccessToken);
+        const calendar = google.calendar({ version: 'v3', auth });
 
         // Parse start and end times
         const { class_name, location, time_slot, days, start_date, end_date } = eventDetails;
         const [startTime, endTime] = time_slot.split(' - ');
 
-        // Parse times
-        const startDateTime = new Date(`${start_date} ${startTime}`);
-        const endDateTime = new Date(`${start_date} ${endTime}`);
+        // Parse times correctly for America/Denver timezone
+        const startDateTime = createDateInTimezone(start_date, startTime, 'America/Denver');
+        const endDateTime = createDateInTimezone(start_date, endTime, 'America/Denver');
 
         // Create recurrence rule
         const dayMap = {
@@ -62,7 +133,6 @@ async function createRecurringEvent(userAccessToken, eventDetails) {
         };
 
         const response = await calendar.events.insert({
-            auth,
             calendarId: 'primary',
             requestBody: event
         });
@@ -79,11 +149,13 @@ async function createRecurringEvent(userAccessToken, eventDetails) {
 async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails) {
     try {
         const auth = await getCalendarClient(userAccessToken);
+        const calendar = google.calendar({ version: 'v3', auth });
+        
         const { class_name, location, time_slot, days, end_date, start_date } = eventDetails;
 
         const [startTime, endTime] = time_slot.split(' - ');
-        const startDateTime = new Date(`${start_date} ${startTime}`);
-        const endDateTime = new Date(`${start_date} ${endTime}`);
+        const startDateTime = createDateInTimezone(start_date, startTime, 'America/Denver');
+        const endDateTime = createDateInTimezone(start_date, endTime, 'America/Denver');
 
         const dayMap = {
             'Monday': 'MO',
@@ -115,7 +187,6 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
         };
 
         const response = await calendar.events.update({
-            auth,
             calendarId: 'primary',
             eventId: googleEventId,
             requestBody: event
@@ -133,9 +204,9 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
 async function deleteGoogleEvent(userAccessToken, googleEventId) {
     try {
         const auth = await getCalendarClient(userAccessToken);
+        const calendar = google.calendar({ version: 'v3', auth });
 
         await calendar.events.delete({
-            auth,
             calendarId: 'primary',
             eventId: googleEventId
         });
