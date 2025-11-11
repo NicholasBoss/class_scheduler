@@ -25,20 +25,19 @@ function parseTime12to24(timeStr) {
 }
 
 // Helper function to create a Date object in a specific timezone
+// This works by creating an ISO string in the desired timezone
 function createDateInTimezone(dateStr, timeStr, timezone) {
     // Parse time string (12-hour format) to 24-hour format
     const time24 = parseTime12to24(timeStr);
     const [hours, minutes] = time24.split(':').map(Number);
     
-    // Create date in UTC, but we'll adjust for timezone
-    // The dateStr is in YYYY-MM-DD format
+    // dateStr is in YYYY-MM-DD format
     const [year, month, day] = dateStr.split('-').map(Number);
     
-    // Create a date object - this creates it in local time
-    const date = new Date(year, month - 1, day, hours, minutes, 0);
+    // Create a date object representing midnight UTC on that date
+    const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
     
-    // Now we need to adjust for timezone offset
-    // Get the offset for Denver time
+    // Get what time it is in the target timezone when it's midnight UTC on that date
     const formatter = new Intl.DateTimeFormat('en-US', {
         timeZone: timezone,
         year: 'numeric',
@@ -50,27 +49,24 @@ function createDateInTimezone(dateStr, timeStr, timezone) {
         hour12: false
     });
     
-    // Create the same datetime and see what the UTC offset is
-    const tempDate = new Date(year, month - 1, day, hours, minutes, 0);
-    const parts = formatter.formatToParts(tempDate);
-    
-    // Get local time according to the formatter
-    let localYear, localMonth, localDay, localHour, localMinute, localSecond;
+    const parts = formatter.formatToParts(utcDate);
+    let tzYear, tzMonth, tzDay, tzHour, tzMinute, tzSecond;
     parts.forEach(part => {
-        if (part.type === 'year') localYear = parseInt(part.value);
-        if (part.type === 'month') localMonth = parseInt(part.value) - 1;
-        if (part.type === 'day') localDay = parseInt(part.value);
-        if (part.type === 'hour') localHour = parseInt(part.value);
-        if (part.type === 'minute') localMinute = parseInt(part.value);
-        if (part.type === 'second') localSecond = parseInt(part.value);
+        if (part.type === 'year') tzYear = parseInt(part.value);
+        if (part.type === 'month') tzMonth = parseInt(part.value) - 1;
+        if (part.type === 'day') tzDay = parseInt(part.value);
+        if (part.type === 'hour') tzHour = parseInt(part.value);
+        if (part.type === 'minute') tzMinute = parseInt(part.value);
+        if (part.type === 'second') tzSecond = parseInt(part.value);
     });
     
-    // Calculate the offset
-    const utcDate = new Date(year, month - 1, day, hours, minutes, 0);
-    const offset = new Date(localYear, localMonth, localDay, localHour, localMinute, localSecond) - utcDate;
+    // Calculate the offset between UTC midnight and the timezone's midnight
+    const tzMidnight = new Date(Date.UTC(tzYear, tzMonth, tzDay, tzHour, tzMinute, tzSecond));
+    const offsetMs = utcDate.getTime() - tzMidnight.getTime();
     
-    // Adjust the date by the offset
-    const adjustedDate = new Date(tempDate.getTime() - offset);
+    // Now create the actual time we want (hours:minutes in that timezone)
+    const targetUtc = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
+    const adjustedDate = new Date(targetUtc.getTime() + offsetMs);
     
     return adjustedDate;
 }
