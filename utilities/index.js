@@ -29,9 +29,9 @@ Util.checkJWTToken = (req, res, next) => {
             function (err, accountData){
                 if (err) {
                     console.error('❌ JWT verification error for', req.path, ':', err.message)
-                    req.flash('notice','Please Log In')
                     res.clearCookie('jwt')
-                    return res.redirect('/login')
+                    res.locals.loggedin = 0
+                    return next()
                 }
                 req.user = accountData
                 res.locals.accountData = accountData
@@ -39,7 +39,7 @@ Util.checkJWTToken = (req, res, next) => {
                 next()
             })
     } else {
-        console.log('⚠ No JWT token found for:', req.path)
+        res.locals.loggedin = 0
         next()
     }
 }
