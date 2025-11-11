@@ -1,0 +1,14 @@
+<header class="landing-header">
+    <div class="landing-header-left">
+        <img src="/images/site/byui_class_scheduler_logo.png" alt="BYU-I Class Scheduler Logo" class="landing-logo">
+        <h1>Class Scheduler</h1>
+    </div>
+    <div class="landing-header-right">
+        <% if (locals.loggedin) { %>
+            <span class="user-email"><%= locals.accountData?.email %></span>
+            <a href="/logout" class="nav-link logout-link">Logout</a>
+        <% } else { %>
+            <a href="/login" class="nav-link">Sign In</a>
+        <% } %>
+    </div>
+</header>

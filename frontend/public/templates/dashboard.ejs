@@ -682,8 +682,8 @@
                         <div class="col-location">${getLocationLink(event.location)}</div>
                         <div class="col-dates">${formatDate(event.start_date)} to ${formatDate(event.end_date)}</div>
                         <div class="col-actions">
-                            <button class="btn-edit" onclick="editEvent(${event.event_id}, event)">Edit</button>
-                            <button class="btn-delete" onclick="deleteEvent(${event.event_id}, event)">Delete</button>
+                            <button class="btn-edit" onclick="editEvent(${event.event_id})">Edit</button>
+                            <button class="btn-delete" onclick="deleteEvent(${event.event_id})">Delete</button>
                         </div>
                     </div>
                 `;
@@ -707,12 +707,12 @@
             let room = '';
 
             // Try to parse building and room from location string
-            // Check if there's a space at position 3 (e.g., "HB 101")
+            // Check if there's a space at position 3 (e.g., "KIM 101")
             if (location.length > 3 && location[3] === ' ') {
                 building = location.substring(0, 3);
                 room = location.substring(4).trim();
             }
-            // Check if there's a space at position 4 (e.g., "CAMC 101")
+            // Check if there's a space at position 4 (e.g., "BCTR 101")
             else if (location.length > 4 && location[4] === ' ') {
                 building = location.substring(0, 4);
                 room = location.substring(5).trim();
@@ -732,9 +732,7 @@
         }
 
         // Edit event
-        async function editEvent(eventId, e) {
-            e.preventDefault();
-            
+        async function editEvent(eventId) {
             try {
                 // Fetch the event details
                 const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
@@ -840,9 +838,7 @@
         }
 
         // Delete event - show modal with options
-        async function deleteEvent(eventId, e) {
-            e.preventDefault();
-            
+        async function deleteEvent(eventId) {
             try {
                 // Fetch event details to show in confirmation
                 const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {

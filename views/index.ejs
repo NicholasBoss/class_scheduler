@@ -1,0 +1,46 @@
+<%- messages() %>
+<% if (errors) { %>
+    <ul id="errorList" class="notice error">
+        <% errors.array().forEach(error=> { %>
+            <li>
+                <%= error.msg %>
+            </li>
+            <% }) %>
+    </ul>
+    <% } %>
+        <!-- Header -->
+
+        <!-- Main Content -->
+        <div class="landing-content">
+            <div class="landing-hero">
+                <h2>Manage Your Class Schedule Effortlessly</h2>
+                <p>Create, organize, and sync your BYU-Idaho class schedule with Google Calendar. Stay on top of your academic life with our intuitive scheduling tool.</p>
+            </div>
+
+            <!-- Features -->
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📅</div>
+                    <h3>Easy Scheduling</h3>
+                    <p>Quickly add and manage multiple classes with automatic conflict detection and time slot management.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>Google Calendar Sync</h3>
+                    <p>Automatically synchronize your schedule with Google Calendar to keep everything in sync across devices.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎓</div>
+                    <h3>BYU-I Optimized</h3>
+                    <p>Built specifically for BYU-Idaho students with support for all campus buildings and room numbers.</p>
+                </div>
+            </div>
+
+            <!-- Call to Action -->
+            <div class="landing-cta">
+                <a href="/login" class="cta-button cta-primary">Get Started</a>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        

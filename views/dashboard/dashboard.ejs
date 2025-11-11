@@ -1,0 +1,146 @@
+<div class="dashboard">
+    <!-- Header -->
+    <!-- <div class="dashboard-header">
+        <div class="header-left">
+            <img src="/images/site/byui_class_scheduler_logo.png" alt="BYU-I Class Scheduler Logo" class="logo">
+            <h1>Class Scheduler</h1>
+        </div>
+        <div class="user-info">
+            <span class="user-email"><%#= user.email %></span>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
+    </div> -->
+
+    <!-- Main Content -->
+    <div class="dashboard-content">
+        <!-- Create Event Form -->
+        <div class="create-section">
+            <h2>Create New Schedule</h2>
+            
+            <form id="scheduleForm">
+                <!-- Semester Selection -->
+                <div class="form-group">
+                    <label for="semester">Semester</label>
+                    <select id="semester" name="semester" required>
+                        <option value="">Select Semester</option>
+                        <option value="Fall">Fall</option>
+                        <option value="Winter">Winter</option>
+                        <option value="Spring">Spring</option>
+                    </select>
+                </div>
+
+                <!-- Number of Classes -->
+                <div class="form-group">
+                    <label for="numClasses">Number of Classes</label>
+                    <input type="number" id="numClasses" name="numClasses" min="1" max="10" value="1" required>
+                </div>
+
+                <!-- Date Range Info Message -->
+                <div class="info-message">
+                    <p>📅 <strong>Fine-tune your dates:</strong> Adjust the start and end dates to match your semester. Classes will only occur on the selected days between these dates.</p>
+                </div>
+
+                <!-- Date Range -->
+                <div class="date-range">
+                    <div class="form-group">
+                        <label for="beginDate">Start Date</label>
+                        <input type="date" id="beginDate" name="beginDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="endDate">End Date</label>
+                        <input type="date" id="endDate" name="endDate" required>
+                    </div>
+                </div>
+
+                <!-- Classes Container -->
+                <div class="classes-container" id="classesContainer">
+                    <!-- Classes will be dynamically added here -->
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="submit-btn">Generate Schedule</button>
+            </form>
+        </div>
+
+        <!-- Events List Section -->
+        <div class="events-section">
+            <h2>Your Scheduled Classes</h2>
+            <div id="eventListContainer">
+                <div class="loading">Loading your events...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Event Modal -->
+    <div id="editModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Class</h2>
+                <span class="close" onclick="closeEditModal()">&times;</span>
+            </div>
+            <form id="editForm" onsubmit="submitEditForm(event)">
+                <div class="form-group">
+                    <label for="editClassName">Class Name</label>
+                    <input type="text" id="editClassName" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="editLocation">Location</label>
+                    <input type="text" id="editLocation" placeholder="e.g., KIM 101" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="editTimeSlot">Time Slot</label>
+                    <select id="editTimeSlot" required>
+                        <option value="">Select Time Slot</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Days of Week</label>
+                    <div class="days-checkboxes">
+                        <div class="day-checkbox-row">
+                            <label><input type="checkbox" name="editDays" value="Monday"> Monday</label>
+                            <label><input type="checkbox" name="editDays" value="Tuesday"> Tuesday</label>
+                            <label><input type="checkbox" name="editDays" value="Wednesday"> Wednesday</label>
+                            <label><input type="checkbox" name="editDays" value="Thursday"> Thursday</label>
+                            <label><input type="checkbox" name="editDays" value="Friday"> Friday</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="date-row">
+                    <div class="form-group">
+                        <label for="editStartDate">Start Date</label>
+                        <input type="date" id="editStartDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEndDate">End Date</label>
+                        <input type="date" id="editEndDate" required>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" class="btn-save">Save Changes</button>
+                    <button type="button" class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Set API base URL for use in modules (must be before constants.js)
+    window.API_BASE_URL = '<%= apiBaseUrl %>';
+</script>
+
+<!-- Dashboard Module Scripts -->
+<script src="/js/dashboard/constants.js"></script>
+<script src="/js/dashboard/time-slots.js"></script>
+<script src="/js/dashboard/form-generation.js"></script>
+<script src="/js/dashboard/validation.js"></script>
+<script src="/js/dashboard/semester.js"></script>
+<script src="/js/dashboard/api.js"></script>
+<script src="/js/dashboard/ui-renderer.js"></script>
+<script src="/js/dashboard/form-submission.js"></script>
+<script src="/js/dashboard/app.js"></script>
