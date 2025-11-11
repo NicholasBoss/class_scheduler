@@ -7,11 +7,21 @@ require("dotenv").config()
  * If - else will make determination which to use
  * *************** */
 let pool
+
+// SSL configuration for production (Render uses self-signed certificates)
+const sslConfig = process.env.NODE_ENV === "production" 
+  ? {
+      rejectUnauthorized: false,
+      sslmode: 'require'
+    }
+  : {
+      rejectUnauthorized: false
+    }
+
 if (process.env.NODE_ENV == "development") {
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: true,
-    rejectUnauthorized: false,
+    ssl: sslConfig,
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
@@ -34,8 +44,7 @@ if (process.env.NODE_ENV == "development") {
 } else {
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: true,
-    rejectUnauthorized: false,
+    ssl: sslConfig,
   })
   module.exports = pool
 }
