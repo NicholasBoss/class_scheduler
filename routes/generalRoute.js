@@ -12,6 +12,9 @@ router.get("/", util.handleErrors(baseController.buildHome))
 // Default Login Route
 router.get("/login", util.handleErrors(baseController.buildLogin))
 
+// Privacy Policy Route
+router.get("/privacy", util.handleErrors(baseController.buildPrivacy))
+
 // Dashboard Route
 router.get("/dashboard", util.handleErrors(baseController.buildDashboard))
 

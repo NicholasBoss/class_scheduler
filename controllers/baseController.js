@@ -40,4 +40,14 @@ baseController.buildDashboard = async function(req, res){
     })
 }
 
+baseController.buildPrivacy = async function(req, res){
+    return res.render('privacy', {
+        title: 'Privacy Policy', 
+        link: 'privacy', 
+        errors: null,
+        loggedin: res.locals.loggedin || false,
+        accountData: res.locals.accountData || null
+    })
+}
+
 module.exports = baseController
