@@ -2,17 +2,17 @@ const baseController = {}
 require('dotenv').config();
 
 baseController.buildHome = async function(req, res){
-    res.render('index', {
+    return res.render('index', {
         title: 'Home', 
         link: '', 
         errors: null,
-        loggedin: false,
-        accountData: null
+        loggedin: res.locals.loggedin || false,
+        accountData: res.locals.accountData || null
     })
 }
 
 baseController.buildLogin = async function(req, res){
-    res.render('login/login', {
+    return res.render('login/login', {
         title: 'Login', 
         link: 'login', 
         errors: null,
@@ -31,7 +31,7 @@ baseController.buildDashboard = async function(req, res){
     }
 
     console.log('✓ User authenticated, rendering dashboard')
-    res.render('dashboard/dashboard', {
+    return res.render('dashboard/dashboard', {
         title: 'Dashboard', 
         link: 'dashboard', 
         errors: null,
