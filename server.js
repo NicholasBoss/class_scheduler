@@ -74,20 +74,9 @@ app.set("layout", "./layouts/layout") // not at views root
  * Routes
  *************************/
 app.use(static)
-// Index route
-app.get("/", generalRoute)
 
-// Login Route
-app.get("/login", generalRoute)
-
-// Dashboard Route
-app.get("/dashboard", generalRoute)
-
-// Logout Route
-app.get("/logout", (req, res) => {
-    res.clearCookie('sessionId')
-    res.redirect('/')
-})
+// General Routes (home, login, dashboard, logout)
+app.use(generalRoute)
 
 // API Routes
 app.use("/api/auth", authRoute)
