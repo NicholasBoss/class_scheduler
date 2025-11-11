@@ -6,9 +6,18 @@
     <div class="landing-header-right">
         <% if (locals.loggedin) { %>
             <span class="user-email"><%= locals.accountData?.email %></span>
-            <a href="/logout" class="nav-link logout-link">Logout</a>
+            <a href="/dashboard" class="nav-link">Dashboard</a>
+            <a href="/logout" class="nav-link logout-link" onclick="handleLogout()">Logout</a>
         <% } else { %>
             <a href="/login" class="nav-link">Sign In</a>
         <% } %>
     </div>
 </header>
+
+<script>
+    function handleLogout() {
+        // Clear JWT token from localStorage
+        localStorage.removeItem('token');
+        // Let the browser navigate to /logout naturally
+    }
+</script>
