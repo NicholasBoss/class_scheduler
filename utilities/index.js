@@ -22,15 +22,22 @@ Util.checkJWTToken = (req, res, next) => {
         }
     }
 
+    // Set default value
+    res.locals.loggedin = 0
+
     if (token) {
         jwt.verify(
             token,
             process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET,
             function (err, accountData){
+                // Check if response was already sent
+                if (res.headersSent) {
+                    return
+                }
+
                 if (err) {
                     console.error('❌ JWT verification error for', req.path, ':', err.message)
                     res.clearCookie('jwt')
-                    res.locals.loggedin = 0
                     return next()
                 }
                 req.user = accountData
@@ -39,7 +46,6 @@ Util.checkJWTToken = (req, res, next) => {
                 next()
             })
     } else {
-        res.locals.loggedin = 0
         next()
     }
 }
