@@ -15,6 +15,10 @@ router.get("/login", util.handleErrors(baseController.buildLogin))
 // Privacy Policy Route
 router.get("/privacy", util.handleErrors(baseController.buildPrivacy))
 
+// Verification Route
+router.get("/verify", util.handleErrors(baseController.verifyGoogle))
+
+
 // Dashboard Route
 router.get("/dashboard", util.handleErrors(baseController.buildDashboard))
 
