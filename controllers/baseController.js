@@ -52,7 +52,7 @@ baseController.buildPrivacy = async function(req, res){
 
 baseController.verifyGoogle = async function(req, res){
     // This function can be expanded to verify Google integration if needed
-    return res.render('views/googlec5cea6684177558d.html', {
+    return res.render('googlec5cea6684177558d', {
         title: 'Verify Google', 
         link: 'verify', 
         errors: null,
