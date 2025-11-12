@@ -55,6 +55,8 @@ function setupFormSubmission() {
             alert(result.message);
             document.getElementById('scheduleForm').reset();
             document.getElementById('classesContainer').innerHTML = '';
+            // Clear saved form data after successful submission
+            FormDataPersistence.clear();
             // Regenerate the class forms (1 class by default)
             generateClassForms(1);
             await loadEvents();
@@ -68,8 +70,92 @@ function setupFormSubmission() {
 function setupNumClassesListener() {
     document.getElementById('numClasses').addEventListener('change', (e) => {
         const numClasses = parseInt(e.target.value);
+        // Save current form data before regenerating
+        FormDataPersistence.save();
         generateClassForms(numClasses);
     });
+}
+
+// Setup listeners for form field changes to auto-save data
+function setupFormFieldListeners() {
+    const scheduleForm = document.getElementById('scheduleForm');
+    
+    // Listen for changes on top-level form fields
+    const dateInputs = ['beginDate', 'endDate'];
+    dateInputs.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', () => {
+                FormDataPersistence.save();
+            });
+        }
+    });
+}
+
+// Setup listeners for class field changes (called after forms are generated)
+function setupClassFormListeners() {
+    const numClasses = parseInt(document.getElementById('numClasses').value) || 0;
+    
+    for (let i = 0; i < numClasses; i++) {
+        // Class name input
+        const classNameInput = document.getElementById(`className${i}`);
+        if (classNameInput) {
+            classNameInput.addEventListener('change', () => {
+                FormDataPersistence.save();
+            });
+            classNameInput.addEventListener('input', () => {
+                // Debounced save on input
+                clearTimeout(classNameInput.saveTimeout);
+                classNameInput.saveTimeout = setTimeout(() => {
+                    FormDataPersistence.save();
+                }, 500);
+            });
+        }
+        
+        // Building code select
+        const buildingSelect = document.getElementById(`buildingCode${i}`);
+        if (buildingSelect) {
+            buildingSelect.addEventListener('change', () => {
+                FormDataPersistence.save();
+            });
+        }
+        
+        // Room number input
+        const roomInput = document.getElementById(`roomNumber${i}`);
+        if (roomInput) {
+            roomInput.addEventListener('change', () => {
+                FormDataPersistence.save();
+            });
+            roomInput.addEventListener('input', () => {
+                clearTimeout(roomInput.saveTimeout);
+                roomInput.saveTimeout = setTimeout(() => {
+                    FormDataPersistence.save();
+                }, 500);
+            });
+        }
+        
+        // Manual location input
+        const locationInput = document.getElementById(`location${i}`);
+        if (locationInput) {
+            locationInput.addEventListener('change', () => {
+                FormDataPersistence.save();
+            });
+            locationInput.addEventListener('input', () => {
+                clearTimeout(locationInput.saveTimeout);
+                locationInput.saveTimeout = setTimeout(() => {
+                    FormDataPersistence.save();
+                }, 500);
+            });
+        }
+        
+        // Time slot select
+        const timeSlotSelect = document.getElementById(`timeSlot${i}`);
+        if (timeSlotSelect) {
+            timeSlotSelect.addEventListener('change', () => {
+                FormDataPersistence.save();
+            });
+        }
+    }
 }
 
 // Edit event function

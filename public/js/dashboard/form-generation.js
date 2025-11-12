@@ -90,6 +90,9 @@ function generateClassForms(numClasses) {
                     simpleForm.style.display = 'block';
                     manualForm.style.display = 'none';
                 }
+                
+                // Save form data after toggling location mode
+                FormDataPersistence.save();
             });
         });
 
@@ -98,7 +101,15 @@ function generateClassForms(numClasses) {
         dayCheckboxes.forEach((checkbox) => {
             checkbox.addEventListener('change', () => {
                 updateTimeSlots(i);
+                // Save form data when days change
+                FormDataPersistence.save();
             });
         });
     }
+
+    // Restore previously saved form data after generating new forms
+    FormDataPersistence.restore();
+    
+    // Setup event listeners for the newly generated form fields
+    setupClassFormListeners();
 }
