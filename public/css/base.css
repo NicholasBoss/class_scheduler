@@ -335,6 +335,7 @@ footer a:hover {
 
 .create-section {
     background: white;
+    padding: 5%;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
@@ -377,6 +378,10 @@ footer a:hover {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
+}
+
+#beginDate, #endDate {
+    max-width: 85%;
 }
 
 .days-select, .day-checkbox-row {

@@ -68,7 +68,7 @@ function generateClassForms(numClasses) {
             <div class="form-group">
                 <label for="timeSlot${i}">Time Slot</label>
                 <select id="timeSlot${i}" name="timeSlot${i}" required>
-                    <option value="">Select Days First, Then Choose Time</option>
+                    <option value="">Select Days, Then Choose Time</option>
                 </select>
             </div>
         `;
