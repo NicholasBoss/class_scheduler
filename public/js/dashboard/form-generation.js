@@ -66,10 +66,22 @@ function generateClassForms(numClasses) {
             </div>
 
             <div class="form-group">
-                <label for="timeSlot${i}">Time Slot</label>
-                <select id="timeSlot${i}" name="timeSlot${i}" required>
-                    <option value="">Select Days, Then Choose Time</option>
-                </select>
+                <label>Time Slot</label>
+                <div class="time-slot-input-group">
+                    <div class="time-form-preset" id="timePreset${i}">
+                        <select id="timeSlot${i}" name="timeSlot${i}">
+                            <option value="">Select Days, Then Choose Time</option>
+                        </select>
+                        <button type="button" class="toggle-time-btn" data-class-index="${i}">Or Enter Custom Time</button>
+                    </div>
+                    <div class="time-form-custom" id="timeCustom${i}" style="display: none;">
+                        <div class="custom-time-input">
+                            <input type="time" id="customStartTime${i}" name="customStartTime${i}">
+                            <input type="time" id="customEndTime${i}" name="customEndTime${i}">
+                        </div>
+                        <button type="button" class="toggle-time-btn" data-class-index="${i}">Use Preset Times</button>
+                    </div>
+                </div>
             </div>
         `;
         container.appendChild(classForm);
@@ -96,6 +108,27 @@ function generateClassForms(numClasses) {
             });
         });
 
+        // Attach time toggle listeners
+        const timeToggleButtons = classForm.querySelectorAll('.toggle-time-btn');
+        timeToggleButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const classIdx = parseInt(e.target.dataset.classIndex);
+                const presetForm = document.getElementById(`timePreset${classIdx}`);
+                const customForm = document.getElementById(`timeCustom${classIdx}`);
+                
+                if (presetForm.style.display !== 'none') {
+                    presetForm.style.display = 'none';
+                    customForm.style.display = 'block';
+                } else {
+                    presetForm.style.display = 'block';
+                    customForm.style.display = 'none';
+                }
+                
+                FormDataPersistence.save();
+            });
+        });
+
         // Attach change listeners to day checkboxes
         const dayCheckboxes = document.querySelectorAll(`input[name="days${i}"]`);
         dayCheckboxes.forEach((checkbox) => {
@@ -104,6 +137,12 @@ function generateClassForms(numClasses) {
                 // Save form data when days change
                 FormDataPersistence.save();
             });
+        });
+
+        // Attach listener to time slot selector
+        const timeSlotSelect = document.getElementById(`timeSlot${i}`);
+        timeSlotSelect.addEventListener('change', () => {
+            FormDataPersistence.save();
         });
     }
 

@@ -32,7 +32,24 @@ async function createSchedule(events) {
 
             if (!response.ok) {
                 const errorData = await response.json();
+                
+                // Check if it's an authentication error
+                if (response.status === 401 && errorData.authError) {
+                    const error = new Error(errorData.error);
+                    error.authError = true;
+                    throw error;
+                }
+                
                 throw new Error(`Failed to create event: ${errorData.error || response.statusText}`);
+            }
+
+            const data = await response.json();
+            
+            // Check for Google Calendar sync warnings
+            if (data.google_sync && data.google_sync.status === 'pending' && data.google_sync.error) {
+                console.warn('⚠ Google Calendar sync warning:', data.google_sync.error);
+                // Show warning to user but don't fail
+                alert(`⚠ Note: ${data.message}\n\nReason: ${data.google_sync.error}`);
             }
         }
         

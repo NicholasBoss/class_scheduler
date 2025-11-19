@@ -26,7 +26,7 @@ const FormDataPersistence = (() => {
         }
 
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
-        console.log('Form data saved:', formData);
+        // console.log('Form data saved:', formData);
     }
 
     /**
@@ -47,6 +47,18 @@ const FormDataPersistence = (() => {
             // Determine which location mode is active
             const simpleForm = document.getElementById(`locationSimple${index}`);
             const isSimpleMode = simpleForm && simpleForm.style.display !== 'none';
+            
+            // Determine which time mode is active
+            const presetForm = document.getElementById(`timePreset${index}`);
+            const isPresetTimeMode = presetForm && presetForm.style.display !== 'none';
+            
+            // Get custom time values if custom mode is active
+            let customStartTime = '';
+            let customEndTime = '';
+            if (!isPresetTimeMode) {
+                customStartTime = document.getElementById(`customStartTime${index}`)?.value || '';
+                customEndTime = document.getElementById(`customEndTime${index}`)?.value || '';
+            }
 
             return {
                 className,
@@ -55,7 +67,10 @@ const FormDataPersistence = (() => {
                 manualLocation,
                 days,
                 timeSlot,
-                isSimpleMode
+                isSimpleMode,
+                isPresetTimeMode,
+                customStartTime,
+                customEndTime
             };
         } catch (e) {
             console.warn(`Error collecting class ${index} data:`, e);
@@ -77,11 +92,11 @@ const FormDataPersistence = (() => {
     function restoreFormData() {
         const formData = getFormData();
         if (!formData) {
-            console.log('No saved form data to restore');
+            // console.log('No saved form data to restore');
             return;
         }
 
-        console.log('Restoring form data:', formData);
+        // console.log('Restoring form data:', formData);
 
         try {
             // Restore top-level form fields
@@ -152,6 +167,20 @@ const FormDataPersistence = (() => {
                 }
             }
 
+            // Restore time mode (preset vs custom)
+            const presetForm = document.getElementById(`timePreset${index}`);
+            const customForm = document.getElementById(`timeCustom${index}`);
+            
+            if (classData.isPresetTimeMode !== undefined) {
+                if (classData.isPresetTimeMode) {
+                    if (presetForm) presetForm.style.display = 'block';
+                    if (customForm) customForm.style.display = 'none';
+                } else {
+                    if (presetForm) presetForm.style.display = 'none';
+                    if (customForm) customForm.style.display = 'block';
+                }
+            }
+
             // Restore days
             if (classData.days && Array.isArray(classData.days)) {
                 const dayCheckboxes = document.querySelectorAll(`input[name="days${index}"]`);
@@ -166,12 +195,22 @@ const FormDataPersistence = (() => {
             }
 
             // Restore time slot (after days are set and time slots are updated)
-            if (classData.timeSlot) {
+            if (classData.timeSlot && classData.isPresetTimeMode !== false) {
                 setTimeout(() => {
                     const timeSlotSelect = document.getElementById(`timeSlot${index}`);
                     if (timeSlotSelect) {
                         timeSlotSelect.value = classData.timeSlot;
                     }
+                }, 50);
+            }
+
+            // Restore custom times if custom mode
+            if (classData.customStartTime && classData.customEndTime && classData.isPresetTimeMode === false) {
+                setTimeout(() => {
+                    const startInput = document.getElementById(`customStartTime${index}`);
+                    const endInput = document.getElementById(`customEndTime${index}`);
+                    if (startInput) startInput.value = classData.customStartTime;
+                    if (endInput) endInput.value = classData.customEndTime;
                 }, 50);
             }
         } catch (e) {
@@ -184,7 +223,7 @@ const FormDataPersistence = (() => {
      */
     function clearFormData() {
         sessionStorage.removeItem(STORAGE_KEY);
-        console.log('Form data cleared');
+        // console.log('Form data cleared');
     }
 
     // Public API

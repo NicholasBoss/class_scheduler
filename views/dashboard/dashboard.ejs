@@ -127,6 +127,23 @@
             </form>
         </div>
     </div>
+
+    <!-- Google Calendar Notification Modal -->
+    <div id="googleCalendarNotification" class="modal" style="display: none;">
+        <div class="modal-content modal-notification">
+            <div class="modal-header">
+                <h2>Google Calendar Sync Notice</h2>
+                <span class="close" onclick="closeGoogleNotification()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="googleNotificationMessage"></p>
+                <div class="modal-actions">
+                    <button type="button" class="btn-primary" onclick="redirectToGoogleLogin()">Re-login to Google</button>
+                    <button type="button" class="btn-cancel" onclick="closeGoogleNotification()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>

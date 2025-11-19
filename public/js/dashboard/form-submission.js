@@ -1,7 +1,47 @@
+// Validate time selection for all classes
+function validateTimeSelection() {
+    const numClasses = parseInt(document.getElementById('numClasses').value);
+    
+    for (let i = 0; i < numClasses; i++) {
+        const presetForm = document.getElementById(`timePreset${i}`);
+        const customForm = document.getElementById(`timeCustom${i}`);
+        
+        if (presetForm.style.display !== 'none') {
+            const timeSlot = document.getElementById(`timeSlot${i}`).value;
+            if (!timeSlot) {
+                alert(`Please select a time slot for Class ${i + 1}`);
+                return false;
+            }
+        } else {
+            const startTime = document.getElementById(`customStartTime${i}`).value;
+            const endTime = document.getElementById(`customEndTime${i}`).value;
+            if (!startTime || !endTime) {
+                alert(`Please enter start and end times for Class ${i + 1}`);
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// Convert 24-hour time format to 12-hour format with AM/PM
+function convertTo12HourFormat(time24) {
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${suffix}`;
+}
+
 // Setup form submission handler
 function setupFormSubmission() {
     document.getElementById('scheduleForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        
+        // Validate time selections before proceeding
+        if (!validateTimeSelection()) {
+            return;
+        }
         
         const numClasses = parseInt(document.getElementById('numClasses').value);
         const beginDate = document.getElementById('beginDate').value;
@@ -22,7 +62,19 @@ function setupFormSubmission() {
                 location = manualLocation;
             }
             
-            const timeSlot = document.getElementById(`timeSlot${i}`).value;
+            // Get time slot from preset or custom
+            let timeSlot = '';
+            const presetForm = document.getElementById(`timePreset${i}`);
+            if (presetForm.style.display !== 'none') {
+                timeSlot = document.getElementById(`timeSlot${i}`).value;
+            } else {
+                const startTime = document.getElementById(`customStartTime${i}`).value;
+                const endTime = document.getElementById(`customEndTime${i}`).value;
+                const start12Hour = convertTo12HourFormat(startTime);
+                const end12Hour = convertTo12HourFormat(endTime);
+                timeSlot = `${start12Hour} - ${end12Hour}`;
+            }
+            
             const dayCheckboxes = document.querySelectorAll(`input[name="days${i}"]:checked`);
             const days = Array.from(dayCheckboxes).map(cb => cb.value).join(',');
 
@@ -61,7 +113,24 @@ function setupFormSubmission() {
             generateClassForms(1);
             await loadEvents();
         } catch (err) {
-            alert('Failed to create schedule: ' + err.message);
+            console.error('Error creating schedule:', err);
+            
+            // Check if this is a Google Calendar auth error
+            if (err.authError) {
+                showGoogleNotification(
+                    `<strong>⚠ Google Calendar Authentication Failed</strong><br><br>` +
+                    `We could not create your class schedule because your Google Calendar authentication has expired or is invalid.<br><br>` +
+                    `<strong>What to do:</strong> Please log out and log back in to re-authorize Google Calendar access, then try creating your schedule again.`
+                );
+            } else if (err.message && err.message.includes('authentication credentials')) {
+                showGoogleNotification(
+                    `<strong>⚠ Google Calendar Authentication Issue</strong><br><br>` +
+                    `Your classes were not created because we couldn't authenticate with Google Calendar.<br><br>` +
+                    `<strong>What to do:</strong> Please log out and log back in to re-authorize Google Calendar access.`
+                );
+            } else {
+                alert('Failed to create schedule: ' + err.message);
+            }
         }
     });
 }
@@ -155,6 +224,20 @@ function setupClassFormListeners() {
                 FormDataPersistence.save();
             });
         }
+
+        // Custom time inputs
+        const customStartTime = document.getElementById(`customStartTime${i}`);
+        const customEndTime = document.getElementById(`customEndTime${i}`);
+        if (customStartTime) {
+            customStartTime.addEventListener('change', () => {
+                FormDataPersistence.save();
+            });
+        }
+        if (customEndTime) {
+            customEndTime.addEventListener('change', () => {
+                FormDataPersistence.save();
+            });
+        }
     }
 }
 
@@ -241,6 +324,32 @@ function openEditModal(event) {
     });
     
     modal.style.display = 'block';
+}
+
+// Close Google Calendar notification modal
+function closeGoogleNotification() {
+    const modal = document.getElementById('googleCalendarNotification');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Redirect to Google login
+function redirectToGoogleLogin() {
+    // Log out user and redirect to login page for re-authentication
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+}
+
+// Show Google Calendar notification
+function showGoogleNotification(message) {
+    const modal = document.getElementById('googleCalendarNotification');
+    const messageElement = document.getElementById('googleNotificationMessage');
+    
+    if (modal && messageElement) {
+        messageElement.innerHTML = message;
+        modal.style.display = 'block';
+    }
 }
 
 // Close edit modal

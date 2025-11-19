@@ -185,11 +185,22 @@ router.post('/', verifyToken, async (req, res) => {
                 console.log('✓ Event synced to Google Calendar');
             } else {
                 console.log('⚠ No Google Calendar access token found for user');
+                // If user has no token, allow event creation locally
             }
         } catch (err) {
-            console.error('Warning: Could not sync to Google Calendar:', err.message);
+            console.error('Error creating Google Calendar event:', err.message);
+            
+            // Check if this is an authentication error
+            if (err.message && (err.message.includes('Invalid') || err.message.includes('authentication') || err.message.includes('credentials'))) {
+                // Authentication error - prevent database entry
+                return res.status(401).json({ 
+                    error: 'Google Calendar authentication failed: ' + err.message + '. Please re-authenticate your Google Calendar account.',
+                    authError: true
+                });
+            }
+            
+            // For other errors, store the error but allow local creation
             googleError = err.message;
-            // Don't fail the entire request if Google Calendar fails
         }
 
         const query = `

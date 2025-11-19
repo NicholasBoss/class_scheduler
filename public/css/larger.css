@@ -61,4 +61,10 @@
         flex-wrap: wrap;
         gap: 15px;
     }
+
+    .custom-time-input {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
 }

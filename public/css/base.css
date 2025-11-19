@@ -399,6 +399,74 @@ footer a:hover {
     width: fit-content;
 }
 
+.time-slot-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.time-form-preset {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.time-form-preset select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.time-form-custom {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toggle-time-btn, .toggle-location-btn {
+    padding: 8px 12px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+    max-width: 50%;
+    margin-top: 5px;
+}
+
+.toggle-time-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.custom-time-input {
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+}
+
+.custom-time-input input[type="time"] {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.custom-time-input input[type="time"] {
+    cursor: pointer;
+}
+
+.custom-time-input input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(0.5);
+}
+
+
+
 .class-form {
     background: #f9f9f9;
     padding: 15px;
@@ -519,14 +587,14 @@ footer a:hover {
     gap: 10px;
 }
 
-.toggle-location-btn {
+/* .toggle-location-btn {
     padding: 8px 12px;
     background: #f0f0f0;
     border: 1px solid #ddd;
     border-radius: 4px;
     cursor: pointer;
     font-size: 12px;
-}
+} */
 
 .toggle-location-btn:hover {
     background: #e0e0e0;
@@ -711,6 +779,46 @@ footer a:hover {
 
 .btn-cancel:hover {
     background-color: #e8e8e8;
+}
+
+.modal-notification {
+    max-width: 500px;
+}
+
+.modal-notification .modal-body {
+    padding: 20px 0;
+}
+
+.modal-notification p {
+    color: #555;
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.modal-notification .modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.btn-primary {
+    padding: 12px 30px;
+    background-color: #667eea;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.btn-primary:hover {
+    background-color: #5568d3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 /* =========================
