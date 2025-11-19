@@ -42,7 +42,7 @@ function updateTimeSlots(classIndex) {
     const timeSlots = getTimeSlots(selectedDays);
     const timeSelect = document.getElementById(`timeSlot${classIndex}`);
 
-    timeSelect.innerHTML = '<option value="">Select Days First, Then Choose Time</option>';
+    timeSelect.innerHTML = '<option value="">Select Days, Then Choose Time</option>';
     timeSlots.forEach(slot => {
         const option = document.createElement('option');
         option.value = slot.value;

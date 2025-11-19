@@ -129,6 +129,25 @@ function generateClassForms(numClasses) {
             });
         });
 
+        // Attach listener to custom start time to auto-set end time
+        const customStartTime = document.getElementById(`customStartTime${i}`);
+        if (customStartTime) {
+            customStartTime.addEventListener('change', (e) => {
+                const startTime = e.target.value;
+                if (startTime) {
+                    // Calculate end time (1 hour later)
+                    const [hours, minutes] = startTime.split(':');
+                    const endHour = (parseInt(hours) + 1).toString().padStart(2, '0');
+                    const endTime = `${endHour}:${minutes}`;
+                    
+                    const endTimeInput = document.getElementById(`customEndTime${i}`);
+                    endTimeInput.value = endTime;
+                    
+                    FormDataPersistence.save();
+                }
+            });
+        }
+
         // Attach change listeners to day checkboxes
         const dayCheckboxes = document.querySelectorAll(`input[name="days${i}"]`);
         dayCheckboxes.forEach((checkbox) => {

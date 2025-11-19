@@ -111,6 +111,8 @@ function setupFormSubmission() {
             FormDataPersistence.clear();
             // Regenerate the class forms (1 class by default)
             generateClassForms(1);
+            // Re-select the current semester
+            autoSelectSemester();
             await loadEvents();
         } catch (err) {
             console.error('Error creating schedule:', err);
