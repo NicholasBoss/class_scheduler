@@ -85,7 +85,7 @@ async function getCalendarClient(userAccessToken) {
 }
 
 // Create recurring event in Google Calendar
-async function createRecurringEvent(userAccessToken, eventDetails) {
+async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 'primary') {
     try {
         const auth = await getCalendarClient(userAccessToken);
         const calendar = google.calendar({ version: 'v3', auth });
@@ -129,7 +129,7 @@ async function createRecurringEvent(userAccessToken, eventDetails) {
         };
 
         const response = await calendar.events.insert({
-            calendarId: 'primary',
+            calendarId: calendarId,
             requestBody: event
         });
 
@@ -142,7 +142,7 @@ async function createRecurringEvent(userAccessToken, eventDetails) {
 }
 
 // Update event in Google Calendar
-async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails) {
+async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails, calendarId = 'primary') {
     try {
         const auth = await getCalendarClient(userAccessToken);
         const calendar = google.calendar({ version: 'v3', auth });
@@ -183,7 +183,7 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
         };
 
         const response = await calendar.events.update({
-            calendarId: 'primary',
+            calendarId: calendarId,
             eventId: googleEventId,
             requestBody: event
         });
@@ -197,13 +197,13 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
 }
 
 // Delete event from Google Calendar
-async function deleteGoogleEvent(userAccessToken, googleEventId) {
+async function deleteGoogleEvent(userAccessToken, googleEventId, calendarId = 'primary') {
     try {
         const auth = await getCalendarClient(userAccessToken);
         const calendar = google.calendar({ version: 'v3', auth });
 
         await calendar.events.delete({
-            calendarId: 'primary',
+            calendarId: calendarId,
             eventId: googleEventId
         });
 
@@ -211,6 +211,30 @@ async function deleteGoogleEvent(userAccessToken, googleEventId) {
         return true;
     } catch (err) {
         console.error('Error deleting Google Calendar event:', err.message);
+        throw err;
+    }
+}
+
+// Create a new calendar for a semester
+async function createGoogleCalendar(userAccessToken, calendarName, calendarDescription) {
+    try {
+        const auth = await getCalendarClient(userAccessToken);
+        const calendar = google.calendar({ version: 'v3', auth });
+
+        const calendarResource = {
+            summary: calendarName,
+            description: calendarDescription || `Calendar for ${calendarName}`,
+            timeZone: 'America/Denver'
+        };
+
+        const response = await calendar.calendars.insert({
+            requestBody: calendarResource
+        });
+
+        console.log('✓ Calendar created in Google Calendar:', response.data.id);
+        return response.data; // Returns { id, summary, description, etc. }
+    } catch (err) {
+        console.error('Error creating Google Calendar:', err.message);
         throw err;
     }
 }
@@ -224,5 +248,6 @@ module.exports = {
     createRecurringEvent,
     updateRecurringEvent,
     deleteGoogleEvent,
-    getGoogleCalendarLink
+    getGoogleCalendarLink,
+    createGoogleCalendar
 };

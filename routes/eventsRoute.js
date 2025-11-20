@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../database/');
 const { verifyToken } = require('../utilities/auth');
-const { createRecurringEvent, updateRecurringEvent, deleteGoogleEvent, getGoogleCalendarLink } = require('../utilities/calendar');
+const { createRecurringEvent, updateRecurringEvent, deleteGoogleEvent, getGoogleCalendarLink, createGoogleCalendar } = require('../utilities/calendar');
 
 const router = express.Router();
 
@@ -75,30 +75,7 @@ router.get('/', verifyToken, async (req, res) => {
             ORDER BY created_at DESC
         `;
         const result = await pool.query(query, [req.user.account_id]);
-        
-        // Get deleted occurrences for all events
-        const deletedQuery = `
-            SELECT event_id, deleted_date FROM deleted_occurrences
-            WHERE account_id = $1
-        `;
-        const deletedResult = await pool.query(deletedQuery, [req.user.account_id]);
-        
-        // Group deleted dates by event_id
-        const deletedOccurrences = {};
-        deletedResult.rows.forEach(row => {
-            if (!deletedOccurrences[row.event_id]) {
-                deletedOccurrences[row.event_id] = [];
-            }
-            deletedOccurrences[row.event_id].push(row.deleted_date);
-        });
-        
-        // Add deleted occurrences to each event
-        const eventsWithDeleted = result.rows.map(event => ({
-            ...event,
-            deleted_occurrences: deletedOccurrences[event.event_id] || []
-        }));
-        
-        res.json(eventsWithDeleted);
+        res.json(result.rows);
     } catch (err) {
         console.error('Error fetching events:', err);
         res.status(500).json({ error: 'Failed to fetch events' });
@@ -119,19 +96,7 @@ router.get('/:id', verifyToken, async (req, res) => {
         }
 
         const event = result.rows[0];
-        
-        // Get deleted occurrences for this event
-        const deletedQuery = `
-            SELECT deleted_date FROM deleted_occurrences
-            WHERE event_id = $1 AND account_id = $2
-        `;
-        const deletedResult = await pool.query(deletedQuery, [req.params.id, req.user.account_id]);
-        const deleted_occurrences = deletedResult.rows.map(row => row.deleted_date);
-        
-        res.json({
-            ...event,
-            deleted_occurrences
-        });
+        res.json(event);
     } catch (err) {
         console.error('Error fetching event:', err);
         res.status(500).json({ error: 'Failed to fetch event' });
@@ -141,7 +106,7 @@ router.get('/:id', verifyToken, async (req, res) => {
 // Create new event
 router.post('/', verifyToken, async (req, res) => {
     try {
-        const { class_name, location, time_slot, days, start_date, end_date } = req.body;
+        const { class_name, location, time_slot, days, start_date, end_date, create_separate_calendar, semester_name } = req.body;
 
         // Validate location
         const locationValidation = validateLocation(location);
@@ -165,70 +130,179 @@ router.post('/', verifyToken, async (req, res) => {
         const untilString = untilDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
         const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${recurringDays.join(',')};UNTIL=${untilString}`;
 
+        // FIRST: Create event in database (with null google_event_id initially)
+        // This ensures we only create in Google Calendar if database insertion succeeds
+        const insertQuery = `
+            INSERT INTO events (account_id, class_name, location, time_slot, days, start_date, end_date, created_at, recurrence_rule, google_event_id, semester_name)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, NULL, $9)
+            RETURNING *
+        `;
+        let result;
+        try {
+            result = await pool.query(insertQuery, [
+                req.user.account_id,
+                class_name,
+                locationValidation.formatted,
+                time_slot,
+                days,
+                start_date,
+                end_date,
+                rrule,
+                semester_name || null
+            ]);
+            console.log('✓ Event created in database:', result.rows[0].event_id);
+        } catch (dbErr) {
+            console.error('ERROR: Failed to insert event into database:', dbErr.message);
+            console.error('Query:', insertQuery);
+            console.error('Values:', [
+                req.user.account_id,
+                class_name,
+                locationValidation.formatted,
+                time_slot,
+                days,
+                start_date,
+                end_date,
+                rrule,
+                semester_name || null
+            ]);
+            throw dbErr;
+        }
+
+        const eventId = result.rows[0].event_id;
         let googleEventId = null;
         let googleLink = null;
         let googleError = null;
+        let googleCalendarId = 'primary'; // Default to primary calendar
 
-        // Try to get user's Google access token and create in Google Calendar
+        // SECOND: Try to sync with Google Calendar
         try {
             const accessTokenQuery = 'SELECT google_access_token FROM account WHERE account_id = $1';
             const tokenResult = await pool.query(accessTokenQuery, [req.user.account_id]);
             
             if (tokenResult.rows.length > 0 && tokenResult.rows[0].google_access_token) {
                 const accessToken = tokenResult.rows[0].google_access_token;
+                
+                // If user wants separate calendar, check if one exists for this semester
+                if (create_separate_calendar && semester_name) {
+                    try {
+                        const calendarCheckQuery = `
+                            SELECT google_calendar_id FROM semester_calendars 
+                            WHERE account_id = $1 AND semester_name = $2
+                        `;
+                        const calendarCheckResult = await pool.query(calendarCheckQuery, [req.user.account_id, semester_name]);
+                        
+                        if (calendarCheckResult.rows.length > 0) {
+                            // Calendar already exists, use it
+                            googleCalendarId = calendarCheckResult.rows[0].google_calendar_id;
+                            console.log(`✓ Using existing semester calendar: ${googleCalendarId}`);
+                        } else {
+                            // Create new calendar for this semester
+                            const newCalendar = await createGoogleCalendar(
+                                accessToken,
+                                `${semester_name} Semester Classes`,
+                                `Classes for ${semester_name} semester`
+                            );
+                            googleCalendarId = newCalendar.id;
+                            
+                            // Store the calendar mapping in database
+                            const insertCalendarQuery = `
+                                INSERT INTO semester_calendars (account_id, semester_name, google_calendar_id, created_at)
+                                VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+                                ON CONFLICT (account_id, semester_name) DO UPDATE 
+                                SET google_calendar_id = $3
+                            `;
+                            await pool.query(insertCalendarQuery, [req.user.account_id, semester_name, googleCalendarId]);
+                            console.log(`✓ Created and stored new semester calendar: ${googleCalendarId}`);
+                        }
+                    } catch (calendarErr) {
+                        console.error('Warning: Could not manage semester calendar:', calendarErr.message);
+                        // Continue with primary calendar if semester calendar fails
+                        googleCalendarId = 'primary';
+                    }
+                }
+                
                 const googleEvent = await createRecurringEvent(
                     accessToken,
-                    { class_name, location: locationValidation.formatted, time_slot, days, start_date, end_date }
+                    { class_name, location: locationValidation.formatted, time_slot, days, start_date, end_date },
+                    googleCalendarId
                 );
                 googleEventId = googleEvent.id;
                 googleLink = googleEvent.htmlLink;
-                console.log('✓ Event synced to Google Calendar');
+                console.log('✓ Event synced to Google Calendar:', googleEventId);
+                
+                // Update database with Google event ID
+                try {
+                    const updateResult = await pool.query(
+                        'UPDATE events SET google_event_id = $1 WHERE event_id = $2',
+                        [googleEventId, eventId]
+                    );
+                    console.log('✓ Database updated with Google event ID');
+                } catch (updateErr) {
+                    console.error('ERROR: Failed to update database with Google event ID:', updateErr.message);
+                    console.error('Event was created in Google Calendar but database update failed!');
+                    console.error('Google Event ID:', googleEventId);
+                    console.error('Database Event ID:', eventId);
+                    throw updateErr; // Re-throw to trigger cleanup
+                }
             } else {
                 console.log('⚠ No Google Calendar access token found for user');
-                // If user has no token, allow event creation locally
+                // If user has no token, event exists locally but not in Google Calendar
             }
         } catch (err) {
             console.error('Error creating Google Calendar event:', err.message);
             
-            // Check if this is an authentication error
-            if (err.message && (err.message.includes('Invalid') || err.message.includes('authentication') || err.message.includes('credentials'))) {
-                // Authentication error - prevent database entry
-                return res.status(401).json({ 
-                    error: 'Google Calendar authentication failed: ' + err.message + '. Please re-authenticate your Google Calendar account.',
-                    authError: true
-                });
+            // If we created an event in Google Calendar but DB update failed, clean it up
+            if (googleEventId) {
+                console.error('Attempting cleanup: deleting event from Google Calendar due to DB sync failure');
+                try {
+                    const accessTokenQuery = 'SELECT google_access_token FROM account WHERE account_id = $1';
+                    const tokenResult = await pool.query(accessTokenQuery, [req.user.account_id]);
+                    
+                    if (tokenResult.rows.length > 0 && tokenResult.rows[0].google_access_token) {
+                        await deleteGoogleEvent(tokenResult.rows[0].google_access_token, googleEventId, googleCalendarId);
+                        console.log('✓ Cleaned up Google Calendar event:', googleEventId);
+                    }
+                } catch (cleanupErr) {
+                    console.error('CRITICAL: Failed to clean up Google Calendar event:', cleanupErr.message);
+                    console.error('Orphaned event in Google Calendar - Google Event ID:', googleEventId);
+                    console.error('Please manually delete from calendar:', googleLink);
+                }
             }
             
-            // For other errors, store the error but allow local creation
-            googleError = err.message;
+            // Try to delete the event from local database if it was created
+            if (eventId) {
+                try {
+                    await pool.query('DELETE FROM events WHERE event_id = $1', [eventId]);
+                    console.log('✓ Cleaned up database event:', eventId);
+                } catch (dbCleanupErr) {
+                    console.error('Warning: Could not clean up database event:', dbCleanupErr.message);
+                }
+            }
+            
+            // Check if this is an authentication error
+            if (err.message && (err.message.includes('Invalid') || err.message.includes('authentication') || err.message.includes('credentials'))) {
+                // Authentication error - don't sync to Google Calendar
+                console.log('⚠ Google Calendar authentication error - event saved locally only');
+                googleError = err.message;
+            } else {
+                // For other errors, store the error
+                googleError = err.message;
+                // Re-throw to main error handler
+                throw err;
+            }
         }
-
-        const query = `
-            INSERT INTO events (account_id, class_name, location, time_slot, days, start_date, end_date, created_at, recurrence_rule, google_event_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, $9)
-            RETURNING *
-        `;
-        const result = await pool.query(query, [
-            req.user.account_id,
-            class_name,
-            locationValidation.formatted,
-            time_slot,
-            days,
-            start_date,
-            end_date,
-            rrule,
-            googleEventId
-        ]);
 
         res.status(201).json({
             ...result.rows[0],
+            google_event_id: googleEventId,
             google_calendar_link: googleLink,
-            google_sync: googleError ? { status: 'pending', error: googleError } : { status: 'synced' },
-            message: googleError ? 'Event created locally (Google Calendar sync failed - will retry on next sync)' : 'Event created and synced to Google Calendar'
+            google_sync: googleEventId ? { status: 'synced' } : { status: 'pending', error: googleError || 'No Google Calendar access token' },
+            message: googleEventId ? 'Event created and synced to Google Calendar' : 'Event created locally (not synced to Google Calendar)'
         });
     } catch (err) {
-        console.error('Error creating event:', err);
-        res.status(500).json({ error: 'Failed to create event' });
+        console.error('Error creating event:', err.message);
+        console.error('Full error:', err);
+        res.status(500).json({ error: 'Failed to create event: ' + err.message });
     }
 });
 
@@ -264,12 +338,27 @@ router.put('/:id', verifyToken, async (req, res) => {
                 
                 if (tokenResult.rows.length > 0 && tokenResult.rows[0].google_access_token) {
                     const accessToken = tokenResult.rows[0].google_access_token;
+                    
+                    // Determine which calendar to use - if event has semester_name, use that calendar
+                    let calendarId = 'primary';
+                    if (existingEvent.semester_name) {
+                        const calendarCheckQuery = `
+                            SELECT google_calendar_id FROM semester_calendars 
+                            WHERE account_id = $1 AND semester_name = $2
+                        `;
+                        const calendarCheckResult = await pool.query(calendarCheckQuery, [req.user.account_id, existingEvent.semester_name]);
+                        if (calendarCheckResult.rows.length > 0) {
+                            calendarId = calendarCheckResult.rows[0].google_calendar_id;
+                        }
+                    }
+                    
                     await updateRecurringEvent(
                         accessToken,
                         existingEvent.google_event_id,
-                        { class_name, location: locationValidation.formatted, time_slot, days, start_date, end_date }
+                        { class_name, location: locationValidation.formatted, time_slot, days, start_date, end_date },
+                        calendarId
                     );
-                    console.log('✓ Event updated in Google Calendar');
+                    console.log(`✓ Event updated in Google Calendar (${calendarId})`);
                 }
             } catch (err) {
                 console.error('Warning: Could not update in Google Calendar:', err.message);
@@ -329,11 +418,26 @@ router.delete('/:id', verifyToken, async (req, res) => {
                 
                 if (tokenResult.rows.length > 0 && tokenResult.rows[0].google_access_token) {
                     const accessToken = tokenResult.rows[0].google_access_token;
+                    
+                    // Determine which calendar the event is on - if event has semester_name, use that calendar
+                    let calendarId = 'primary';
+                    if (event.semester_name) {
+                        const calendarCheckQuery = `
+                            SELECT google_calendar_id FROM semester_calendars 
+                            WHERE account_id = $1 AND semester_name = $2
+                        `;
+                        const calendarCheckResult = await pool.query(calendarCheckQuery, [req.user.account_id, event.semester_name]);
+                        if (calendarCheckResult.rows.length > 0) {
+                            calendarId = calendarCheckResult.rows[0].google_calendar_id;
+                        }
+                    }
+                    
                     await deleteGoogleEvent(
                         accessToken,
-                        event.google_event_id
+                        event.google_event_id,
+                        calendarId
                     );
-                    console.log('✓ Event deleted from Google Calendar');
+                    console.log(`✓ Event deleted from Google Calendar (${calendarId})`);
                 } else {
                     // No Google Calendar access token - fail the delete
                     return res.status(401).json({ 
@@ -365,82 +469,6 @@ router.delete('/:id', verifyToken, async (req, res) => {
     } catch (err) {
         console.error('Error deleting event:', err);
         res.status(500).json({ error: 'Failed to delete event' });
-    }
-});
-
-// Delete specific occurrences of a recurring event
-router.post('/:id/delete-occurrences', verifyToken, async (req, res) => {
-    try {
-        const { dates } = req.body;
-
-        if (!dates || !Array.isArray(dates) || dates.length === 0) {
-            return res.status(400).json({ error: 'No dates provided for deletion' });
-        }
-
-        // Get the event first to verify ownership and get details
-        const getQuery = `
-            SELECT * FROM events 
-            WHERE event_id = $1 AND account_id = $2
-        `;
-        const getResult = await pool.query(getQuery, [req.params.id, req.user.account_id]);
-
-        if (getResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Event not found' });
-        }
-
-        const event = getResult.rows[0];
-
-        // Note: Deleting specific occurrences from Google Calendar recurring events is complex
-        // and requires special handling. For now, we'll just track deletions in the local database.
-        // When the calendar is fetched, deleted occurrences will be filtered out.
-        console.log(`Recording deletion of ${dates.length} occurrence(s) for event ${req.params.id}`);
-
-        // Store deleted occurrences in local database
-        // Create a table to track deleted occurrences if it doesn't exist (only once)
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS deleted_occurrences (
-                id SERIAL PRIMARY KEY,
-                event_id INT NOT NULL,
-                deleted_date DATE NOT NULL,
-                deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                account_id INT NOT NULL,
-                FOREIGN KEY (event_id) REFERENCES events(event_id) ON DELETE CASCADE,
-                UNIQUE(event_id, deleted_date)
-            )
-        `);
-
-        // Insert the deleted occurrences
-        const deleteOccurrenceQuery = `
-            INSERT INTO deleted_occurrences (event_id, deleted_date, account_id)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (event_id, deleted_date) DO NOTHING
-        `;
-
-        let successCount = 0;
-        for (const date of dates) {
-            try {
-                const result = await pool.query(deleteOccurrenceQuery, [
-                    req.params.id,
-                    date,
-                    req.user.account_id
-                ]);
-                if (result.rowCount > 0) {
-                    successCount++;
-                }
-            } catch (err) {
-                console.error(`Error recording deleted occurrence on ${date}:`, err);
-            }
-        }
-
-        res.json({
-            success: true,
-            message: `Successfully deleted ${successCount} occurrence(s)`,
-            deleted_count: successCount,
-            total_requested: dates.length
-        });
-    } catch (err) {
-        console.error('Error deleting occurrences:', err);
-        res.status(500).json({ error: 'Failed to delete occurrences' });
     }
 });
 

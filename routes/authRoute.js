@@ -91,7 +91,8 @@ router.get('/oauth-url', (req, res) => {
         const scopes = [
             'https://www.googleapis.com/auth/userinfo.email',
             'https://www.googleapis.com/auth/userinfo.profile',
-            'https://www.googleapis.com/auth/calendar.events'
+            'https://www.googleapis.com/auth/calendar.events',
+            'https://www.googleapis.com/auth/calendar.app.created'
         ];
 
         const url = oauth2Client.generateAuthUrl({

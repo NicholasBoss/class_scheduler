@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS semester_calendars;
 DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS account;
 DROP TYPE IF EXISTS account_type;
@@ -39,8 +40,24 @@ CREATE TABLE IF NOT EXISTS events
     account_id INT NOT NULL,
     google_event_id CHARACTER VARYING UNIQUE,
     recurrence_rule CHARACTER VARYING,
+    semester_name CHARACTER VARYING,
     CONSTRAINT events_pk PRIMARY KEY (event_id),
     CONSTRAINT events_fk1 FOREIGN KEY (account_id) REFERENCES account(account_id) 
         ON DELETE CASCADE
         ON UPDATE CASCADE
+);
+
+-- Semester calendars table for storing separate Google Calendar mappings
+CREATE TABLE IF NOT EXISTS semester_calendars
+(
+    calendar_id SERIAL,
+    account_id INT NOT NULL,
+    semester_name CHARACTER VARYING NOT NULL,
+    google_calendar_id CHARACTER VARYING NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT semester_calendars_pk PRIMARY KEY (calendar_id),
+    CONSTRAINT semester_calendars_fk1 FOREIGN KEY (account_id) REFERENCES account(account_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT semester_calendars_unique UNIQUE (account_id, semester_name)
 );

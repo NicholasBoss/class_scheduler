@@ -46,6 +46,8 @@ function setupFormSubmission() {
         const numClasses = parseInt(document.getElementById('numClasses').value);
         const beginDate = document.getElementById('beginDate').value;
         const endDate = document.getElementById('endDate').value;
+        const createSeparateCalendar = document.getElementById('createSeparateCalendar').checked;
+        const semesterName = document.getElementById('semester').value;
 
         const events = [];
         for (let i = 0; i < numClasses; i++) {
@@ -97,7 +99,9 @@ function setupFormSubmission() {
                     days: days,
                     time_slot: timeSlot,
                     start_date: beginDate,
-                    end_date: endDate
+                    end_date: endDate,
+                    create_separate_calendar: createSeparateCalendar,
+                    semester_name: semesterName
                 });
             }
         }
