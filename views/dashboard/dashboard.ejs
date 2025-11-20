@@ -13,6 +13,11 @@
 
     <!-- Main Content -->
     <div class="dashboard-content">
+        <!-- Google Calendar Status Section -->
+        <div id="calendarStatusSection" class="calendar-status-section" style="display: none;">
+            <div id="calendarStatusBox" class="calendar-status-box"></div>
+        </div>
+
         <!-- Create Event Form -->
         <div class="create-section">
             <h2>Create New Schedule</h2>
@@ -29,12 +34,17 @@
                     </select>
                 </div>
 
-                <!-- Create Separate Calendar Option -->
-                <div class="form-group checkbox-group">
-                    <label>
-                        <input type="checkbox" id="createSeparateCalendar" name="createSeparateCalendar">
-                        Create a separate calendar for this semester
-                    </label>
+                <!-- Calendar Selection -->
+                <div class="form-group">
+                    <label>Calendar for this semester</label>
+                    <div class="calendar-selection-group">
+                        <select id="calendarSelection" name="calendarSelection" required>
+                            <option value="">-- Select Calendar --</option>
+                            <option value="primary">Use default calendar</option>
+                            <option value="create">Create a new calendar</option>
+                        </select>
+                        <div id="existingCalendars" class="existing-calendars-list"></div>
+                    </div>
                 </div>
 
                 <!-- Number of Classes -->
@@ -98,10 +108,22 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="editTimeSlot">Time Slot</label>
-                    <select id="editTimeSlot" required>
-                        <option value="">Select Time Slot</option>
-                    </select>
+                    <label>Time Slot</label>
+                    <div class="time-slot-input-group">
+                        <div class="time-form-preset" id="editTimePreset">
+                            <select id="editTimeSlot">
+                                <option value="">Select Time Slot</option>
+                            </select>
+                            <button type="button" class="toggle-time-btn" onclick="toggleEditTimeMode()">Or Enter Custom Time</button>
+                        </div>
+                        <div class="time-form-custom" id="editTimeCustom" style="display: none;">
+                            <div class="custom-time-input">
+                                <input type="time" id="editCustomStartTime">
+                                <input type="time" id="editCustomEndTime">
+                            </div>
+                            <button type="button" class="toggle-time-btn" onclick="toggleEditTimeMode()">Use Preset Times</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -166,6 +188,8 @@
 <script src="/js/dashboard/form-generation.js"></script>
 <script src="/js/dashboard/validation.js"></script>
 <script src="/js/dashboard/semester.js"></script>
+<script src="/js/dashboard/calendar-selection.js"></script>
+<script src="/js/dashboard/google-auth-status.js"></script>
 <script src="/js/dashboard/api.js"></script>
 <script src="/js/dashboard/ui-renderer.js"></script>
 <script src="/js/dashboard/form-submission.js"></script>

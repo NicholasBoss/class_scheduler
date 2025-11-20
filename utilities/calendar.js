@@ -84,9 +84,56 @@ async function getCalendarClient(userAccessToken) {
     return oauth2Client;
 }
 
+// Refresh Google access token if needed
+async function refreshGoogleAccessToken(accountId) {
+    try {
+        const pool = require('../database/');
+        
+        // Get current tokens from database
+        const query = 'SELECT google_access_token, google_refresh_token FROM account WHERE account_id = $1';
+        const result = await pool.query(query, [accountId]);
+        
+        if (result.rows.length === 0) {
+            throw new Error('User not found');
+        }
+        
+        const { google_access_token, google_refresh_token } = result.rows[0];
+        
+        if (!google_refresh_token) {
+            console.warn('⚠ No refresh token available, cannot refresh access token');
+            return google_access_token;
+        }
+        
+        const oauth2Client = new google.auth.OAuth2(
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_CLIENT_SECRET,
+            process.env.GOOGLE_REDIRECT_URI
+        );
+        
+        oauth2Client.setCredentials({ refresh_token: google_refresh_token });
+        
+        // Refresh the access token
+        const { credentials } = await oauth2Client.refreshAccessToken();
+        const newAccessToken = credentials.access_token;
+        
+        // Update database with new access token
+        await pool.query(
+            'UPDATE account SET google_access_token = $1 WHERE account_id = $2',
+            [newAccessToken, accountId]
+        );
+        
+        console.log('✓ Google access token refreshed');
+        return newAccessToken;
+    } catch (err) {
+        console.error('Error refreshing access token:', err.message);
+        throw err;
+    }
+}
+
 // Create recurring event in Google Calendar
 async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 'primary') {
     try {
+        console.log(`Creating event on calendar: ${calendarId}`);
         const auth = await getCalendarClient(userAccessToken);
         const calendar = google.calendar({ version: 'v3', auth });
 
@@ -98,22 +145,6 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
         const startDateTime = createDateInTimezone(start_date, startTime, 'America/Denver');
         const endDateTime = createDateInTimezone(start_date, endTime, 'America/Denver');
 
-        // Create recurrence rule
-        const dayMap = {
-            'Monday': 'MO',
-            'Tuesday': 'TU',
-            'Wednesday': 'WE',
-            'Thursday': 'TH',
-            'Friday': 'FR'
-        };
-
-        const recurringDays = days.split(',').map(day => dayMap[day.trim()]).filter(Boolean);
-        const untilDate = new Date(end_date);
-        untilDate.setHours(23, 59, 59, 0);
-        const untilString = untilDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-
-        const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${recurringDays.join(',')};UNTIL=${untilString}`;
-
         const event = {
             summary: class_name,
             location: location || '',
@@ -124,9 +155,42 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
             end: {
                 dateTime: endDateTime.toISOString(),
                 timeZone: 'America/Denver'
-            },
-            recurrence: [rrule]
+            }
         };
+
+        // Check if this is a single-day event
+        if (start_date === end_date) {
+            // Single day event - no recurrence
+            console.log(`📅 Single day event on ${start_date}`);
+        } else {
+            // Multi-day recurring event
+            const dayMap = {
+                'Monday': 'MO',
+                'Tuesday': 'TU',
+                'Wednesday': 'WE',
+                'Thursday': 'TH',
+                'Friday': 'FR'
+            };
+
+            const recurringDays = days.split(',').map(day => dayMap[day.trim()]).filter(Boolean);
+            
+            // Parse end_date as a local date string (YYYY-MM-DD) without timezone conversion
+            // Add 1 day to UNTIL date because RRULE UNTIL is exclusive, not inclusive
+            const [year, month, day] = end_date.split('-').map(Number);
+            const endDateObj = new Date(year, month - 1, day);
+            endDateObj.setDate(endDateObj.getDate() + 1); // Add 1 day
+            
+            const untilYear = endDateObj.getFullYear();
+            const untilMonth = String(endDateObj.getMonth() + 1).padStart(2, '0');
+            const untilDay = String(endDateObj.getDate()).padStart(2, '0');
+            const untilString = `${untilYear}${untilMonth}${untilDay}`;
+            
+            const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${recurringDays.join(',')};UNTIL=${untilString}`;
+            console.log(`📅 Recurring event - Original end_date: ${end_date}, RRULE: ${rrule}`);
+            event.recurrence = [rrule];
+        }
+
+        console.log('Event details being sent to Google Calendar:', JSON.stringify(event, null, 2));
 
         const response = await calendar.events.insert({
             calendarId: calendarId,
@@ -134,9 +198,17 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
         });
 
         console.log('✓ Event created in Google Calendar:', response.data.id);
+        console.log('Event link:', response.data.htmlLink);
         return response.data;
     } catch (err) {
         console.error('Error creating Google Calendar event:', err.message);
+        console.error('Error details:', err.response?.data || err);
+        console.error('Full error object:', {
+            message: err.message,
+            status: err.response?.status,
+            statusText: err.response?.statusText,
+            data: err.response?.data
+        });
         throw err;
     }
 }
@@ -153,21 +225,6 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
         const startDateTime = createDateInTimezone(start_date, startTime, 'America/Denver');
         const endDateTime = createDateInTimezone(start_date, endTime, 'America/Denver');
 
-        const dayMap = {
-            'Monday': 'MO',
-            'Tuesday': 'TU',
-            'Wednesday': 'WE',
-            'Thursday': 'TH',
-            'Friday': 'FR'
-        };
-
-        const recurringDays = days.split(',').map(day => dayMap[day.trim()]).filter(Boolean);
-        const untilDate = new Date(end_date);
-        untilDate.setHours(23, 59, 59, 0);
-        const untilString = untilDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-
-        const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${recurringDays.join(',')};UNTIL=${untilString}`;
-
         const event = {
             summary: class_name,
             location: location || '',
@@ -178,9 +235,40 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
             end: {
                 dateTime: endDateTime.toISOString(),
                 timeZone: 'America/Denver'
-            },
-            recurrence: [rrule]
+            }
         };
+
+        // Check if this is a single-day event
+        if (start_date === end_date) {
+            // Single day event - no recurrence
+            console.log(`📅 Updating single day event on ${start_date}`);
+        } else {
+            // Multi-day recurring event
+            const dayMap = {
+                'Monday': 'MO',
+                'Tuesday': 'TU',
+                'Wednesday': 'WE',
+                'Thursday': 'TH',
+                'Friday': 'FR'
+            };
+
+            const recurringDays = days.split(',').map(day => dayMap[day.trim()]).filter(Boolean);
+            
+            // Parse end_date as a local date string (YYYY-MM-DD) without timezone conversion
+            // Add 1 day to UNTIL date because RRULE UNTIL is exclusive, not inclusive
+            const [year, month, day] = end_date.split('-').map(Number);
+            const endDateObj = new Date(year, month - 1, day);
+            endDateObj.setDate(endDateObj.getDate() + 1); // Add 1 day
+            
+            const untilYear = endDateObj.getFullYear();
+            const untilMonth = String(endDateObj.getMonth() + 1).padStart(2, '0');
+            const untilDay = String(endDateObj.getDate()).padStart(2, '0');
+            const untilString = `${untilYear}${untilMonth}${untilDay}`;
+            
+            const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${recurringDays.join(',')};UNTIL=${untilString}`;
+            console.log(`📅 Updating recurring event - Original end_date: ${end_date}, RRULE: ${rrule}`);
+            event.recurrence = [rrule];
+        }
 
         const response = await calendar.events.update({
             calendarId: calendarId,
@@ -210,7 +298,13 @@ async function deleteGoogleEvent(userAccessToken, googleEventId, calendarId = 'p
         console.log('✓ Event deleted from Google Calendar:', googleEventId);
         return true;
     } catch (err) {
+        // If event not found on Google Calendar, that's okay - it was already deleted
+        if (err.message && err.message.includes('404')) {
+            console.log('⚠ Event not found on Google Calendar (already deleted or never synced):', googleEventId);
+            return true; // Treat as success since the event is gone
+        }
         console.error('Error deleting Google Calendar event:', err.message);
+        console.error('Full error:', err.response?.data || err);
         throw err;
     }
 }
@@ -249,5 +343,6 @@ module.exports = {
     updateRecurringEvent,
     deleteGoogleEvent,
     getGoogleCalendarLink,
-    createGoogleCalendar
+    createGoogleCalendar,
+    refreshGoogleAccessToken
 };

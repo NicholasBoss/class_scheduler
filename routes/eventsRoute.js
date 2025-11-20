@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../database/');
 const { verifyToken } = require('../utilities/auth');
-const { createRecurringEvent, updateRecurringEvent, deleteGoogleEvent, getGoogleCalendarLink, createGoogleCalendar } = require('../utilities/calendar');
+const { createRecurringEvent, updateRecurringEvent, deleteGoogleEvent, getGoogleCalendarLink, createGoogleCalendar, refreshGoogleAccessToken } = require('../utilities/calendar');
 
 const router = express.Router();
 
@@ -82,6 +82,23 @@ router.get('/', verifyToken, async (req, res) => {
     }
 });
 
+// Get existing semester calendars for current user
+router.get('/calendars/semesters', verifyToken, async (req, res) => {
+    try {
+        const query = `
+            SELECT semester_name, google_calendar_id 
+            FROM semester_calendars 
+            WHERE account_id = $1 
+            ORDER BY semester_name
+        `;
+        const result = await pool.query(query, [req.user.account_id]);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching semester calendars:', err);
+        res.status(500).json({ error: 'Failed to fetch semester calendars' });
+    }
+});
+
 // Get single event
 router.get('/:id', verifyToken, async (req, res) => {
     try {
@@ -106,7 +123,7 @@ router.get('/:id', verifyToken, async (req, res) => {
 // Create new event
 router.post('/', verifyToken, async (req, res) => {
     try {
-        const { class_name, location, time_slot, days, start_date, end_date, create_separate_calendar, semester_name } = req.body;
+        const { class_name, location, time_slot, days, start_date, end_date, create_separate_calendar, calendar_type, semester_name } = req.body;
 
         // Validate location
         const locationValidation = validateLocation(location);
@@ -179,11 +196,32 @@ router.post('/', verifyToken, async (req, res) => {
             const accessTokenQuery = 'SELECT google_access_token FROM account WHERE account_id = $1';
             const tokenResult = await pool.query(accessTokenQuery, [req.user.account_id]);
             
+            console.log(`Token query result: ${tokenResult.rows.length} rows`);
+            console.log(`Account ID: ${req.user.account_id}`);
+            
+            if (tokenResult.rows.length > 0) {
+                console.log(`Token exists: ${!!tokenResult.rows[0].google_access_token}`);
+                console.log(`Token length: ${tokenResult.rows[0].google_access_token ? tokenResult.rows[0].google_access_token.length : 0}`);
+            }
+            
             if (tokenResult.rows.length > 0 && tokenResult.rows[0].google_access_token) {
-                const accessToken = tokenResult.rows[0].google_access_token;
+                let accessToken = tokenResult.rows[0].google_access_token;
                 
-                // If user wants separate calendar, check if one exists for this semester
-                if (create_separate_calendar && semester_name) {
+                // Try to refresh the access token in case it's expired
+                try {
+                    accessToken = await refreshGoogleAccessToken(req.user.account_id);
+                    console.log('✓ Access token refreshed or verified');
+                } catch (refreshErr) {
+                    console.warn('⚠ Could not refresh access token, using existing token:', refreshErr.message);
+                    // Continue with existing token - it might still be valid
+                }
+                
+                // Determine which calendar to use
+                if (calendar_type === 'primary') {
+                    // User selected default/primary calendar
+                    console.log('✓ Using primary calendar');
+                    googleCalendarId = 'primary';
+                } else if (create_separate_calendar && semester_name) {
                     try {
                         const calendarCheckQuery = `
                             SELECT google_calendar_id FROM semester_calendars 
@@ -219,6 +257,28 @@ router.post('/', verifyToken, async (req, res) => {
                         // Continue with primary calendar if semester calendar fails
                         googleCalendarId = 'primary';
                     }
+                } else if (calendar_type === 'use' && semester_name) {
+                    // User selected an existing semester calendar
+                    try {
+                        const calendarCheckQuery = `
+                            SELECT google_calendar_id FROM semester_calendars 
+                            WHERE account_id = $1 AND semester_name = $2
+                        `;
+                        const calendarCheckResult = await pool.query(calendarCheckQuery, [req.user.account_id, semester_name]);
+                        
+                        if (calendarCheckResult.rows.length > 0) {
+                            // Use the existing calendar
+                            googleCalendarId = calendarCheckResult.rows[0].google_calendar_id;
+                            console.log(`✓ Using existing semester calendar: ${googleCalendarId}`);
+                        } else {
+                            // Fallback to primary if calendar not found
+                            console.warn(`⚠ Requested semester calendar not found, using primary calendar`);
+                            googleCalendarId = 'primary';
+                        }
+                    } catch (calendarErr) {
+                        console.error('Warning: Could not retrieve semester calendar:', calendarErr.message);
+                        googleCalendarId = 'primary';
+                    }
                 }
                 
                 const googleEvent = await createRecurringEvent(
@@ -242,7 +302,9 @@ router.post('/', verifyToken, async (req, res) => {
                     console.error('Event was created in Google Calendar but database update failed!');
                     console.error('Google Event ID:', googleEventId);
                     console.error('Database Event ID:', eventId);
-                    throw updateErr; // Re-throw to trigger cleanup
+                    // Don't re-throw - the event still exists in DB and on Google Calendar
+                    // Just log the error and continue
+                    googleError = `Database sync error: ${updateErr.message}`;
                 }
             } else {
                 console.log('⚠ No Google Calendar access token found for user');
@@ -250,6 +312,8 @@ router.post('/', verifyToken, async (req, res) => {
             }
         } catch (err) {
             console.error('Error creating Google Calendar event:', err.message);
+            console.error('Calendar ID used:', googleCalendarId);
+            console.error('Calendar type:', calendar_type);
             
             // If we created an event in Google Calendar but DB update failed, clean it up
             if (googleEventId) {
@@ -269,26 +333,15 @@ router.post('/', verifyToken, async (req, res) => {
                 }
             }
             
-            // Try to delete the event from local database if it was created
-            if (eventId) {
-                try {
-                    await pool.query('DELETE FROM events WHERE event_id = $1', [eventId]);
-                    console.log('✓ Cleaned up database event:', eventId);
-                } catch (dbCleanupErr) {
-                    console.error('Warning: Could not clean up database event:', dbCleanupErr.message);
-                }
-            }
-            
             // Check if this is an authentication error
             if (err.message && (err.message.includes('Invalid') || err.message.includes('authentication') || err.message.includes('credentials'))) {
-                // Authentication error - don't sync to Google Calendar
+                // Authentication error - don't sync to Google Calendar but keep local event
                 console.log('⚠ Google Calendar authentication error - event saved locally only');
                 googleError = err.message;
             } else {
-                // For other errors, store the error
+                // For other errors, log but don't fail the entire request if the local event was saved
+                console.warn('⚠ Failed to sync to Google Calendar, but local event was saved');
                 googleError = err.message;
-                // Re-throw to main error handler
-                throw err;
             }
         }
 
@@ -333,11 +386,19 @@ router.put('/:id', verifyToken, async (req, res) => {
         // Try to update in Google Calendar if both event ID and access token exist
         if (existingEvent.google_event_id) {
             try {
-                const accessTokenQuery = 'SELECT google_access_token FROM account WHERE account_id = $1';
+                const accessTokenQuery = 'SELECT google_access_token, google_refresh_token FROM account WHERE account_id = $1';
                 const tokenResult = await pool.query(accessTokenQuery, [req.user.account_id]);
                 
                 if (tokenResult.rows.length > 0 && tokenResult.rows[0].google_access_token) {
-                    const accessToken = tokenResult.rows[0].google_access_token;
+                    let accessToken = tokenResult.rows[0].google_access_token;
+                    
+                    // Try to refresh token before update
+                    try {
+                        accessToken = await refreshGoogleAccessToken(req.user.account_id);
+                        console.log('✓ Access token refreshed for update operation');
+                    } catch (refreshErr) {
+                        console.warn('⚠ Could not refresh token, using existing token:', refreshErr.message);
+                    }
                     
                     // Determine which calendar to use - if event has semester_name, use that calendar
                     let calendarId = 'primary';
@@ -413,11 +474,19 @@ router.delete('/:id', verifyToken, async (req, res) => {
         // Try to delete from Google Calendar if both event ID and access token exist
         if (event.google_event_id) {
             try {
-                const accessTokenQuery = 'SELECT google_access_token FROM account WHERE account_id = $1';
+                const accessTokenQuery = 'SELECT google_access_token, google_refresh_token FROM account WHERE account_id = $1';
                 const tokenResult = await pool.query(accessTokenQuery, [req.user.account_id]);
                 
                 if (tokenResult.rows.length > 0 && tokenResult.rows[0].google_access_token) {
-                    const accessToken = tokenResult.rows[0].google_access_token;
+                    let accessToken = tokenResult.rows[0].google_access_token;
+                    
+                    // Try to refresh token before delete
+                    try {
+                        accessToken = await refreshGoogleAccessToken(req.user.account_id);
+                        console.log('✓ Access token refreshed for delete operation');
+                    } catch (refreshErr) {
+                        console.warn('⚠ Could not refresh token, using existing token:', refreshErr.message);
+                    }
                     
                     // Determine which calendar the event is on - if event has semester_name, use that calendar
                     let calendarId = 'primary';

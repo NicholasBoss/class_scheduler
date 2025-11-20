@@ -143,19 +143,19 @@ router.get('/callback', async (req, res) => {
             accountId = userResult.rows[0].account_id;
             const updateQuery = `
                 UPDATE account 
-                SET last_login = CURRENT_TIMESTAMP, google_access_token = $1
-                WHERE account_id = $2
+                SET last_login = CURRENT_TIMESTAMP, google_access_token = $1, google_refresh_token = $2
+                WHERE account_id = $3
             `;
-            await pool.query(updateQuery, [tokens.access_token, accountId]);
+            await pool.query(updateQuery, [tokens.access_token, tokens.refresh_token || null, accountId]);
             console.log('✓ Updated existing user with access token');
         } else {
             // New user - create account with access token
             const insertQuery = `
-                INSERT INTO account (google_id, account_email, account_firstname, account_lastname, google_access_token, created_at, last_login)
-                VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                INSERT INTO account (google_id, account_email, account_firstname, account_lastname, google_access_token, google_refresh_token, created_at, last_login)
+                VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 RETURNING account_id
             `;
-            const insertResult = await pool.query(insertQuery, [google_id, email, firstName, lastName, tokens.access_token]);
+            const insertResult = await pool.query(insertQuery, [google_id, email, firstName, lastName, tokens.access_token, tokens.refresh_token || null]);
             accountId = insertResult.rows[0].account_id;
             console.log('✓ Created new user with access token');
         }

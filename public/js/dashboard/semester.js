@@ -69,13 +69,16 @@ function getYearForSemester(semesterName) {
 
 // Semester change handler
 function setupSemesterListener() {
-    document.getElementById('semester').addEventListener('change', (e) => {
+    document.getElementById('semester').addEventListener('change', async (e) => {
         const sem = e.target.value;
         
         if (sem && semesterDates[sem]) {
             const year = getYearForSemester(sem);
             document.getElementById('beginDate').value = `${year}-${semesterDates[sem].start}`;
-            document.getElementById('endDate').value = `${year}-${semesterDates[sem].end}`;  
+            document.getElementById('endDate').value = `${year}-${semesterDates[sem].end}`;
+            
+            // Refresh available calendars for this semester
+            await CalendarSelection.refreshCalendarsForSemester(sem);
         }
     });
 }

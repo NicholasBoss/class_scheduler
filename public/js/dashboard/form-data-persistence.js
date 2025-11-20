@@ -14,6 +14,7 @@ const FormDataPersistence = (() => {
             numClasses: numClasses,
             beginDate: document.getElementById('beginDate').value,
             endDate: document.getElementById('endDate').value,
+            calendarSelection: document.getElementById('calendarSelection')?.value || '',
             classes: []
         };
 
@@ -105,6 +106,12 @@ const FormDataPersistence = (() => {
             }
             if (formData.endDate) {
                 document.getElementById('endDate').value = formData.endDate;
+            }
+            if (formData.calendarSelection) {
+                const calendarSelect = document.getElementById('calendarSelection');
+                if (calendarSelect) {
+                    calendarSelect.value = formData.calendarSelection;
+                }
             }
 
             // Restore class-specific data

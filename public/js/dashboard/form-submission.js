@@ -33,6 +33,20 @@ function convertTo12HourFormat(time24) {
     return `${hour12}:${minutes} ${suffix}`;
 }
 
+// Convert 12-hour time format with AM/PM to 24-hour format
+function parseTime12to24(time12) {
+    const [time, period] = time12.trim().split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    
+    if (period === 'PM' && hours !== 12) {
+        hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+    }
+    
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
 // Setup form submission handler
 function setupFormSubmission() {
     document.getElementById('scheduleForm').addEventListener('submit', async (e) => {
@@ -46,8 +60,16 @@ function setupFormSubmission() {
         const numClasses = parseInt(document.getElementById('numClasses').value);
         const beginDate = document.getElementById('beginDate').value;
         const endDate = document.getElementById('endDate').value;
-        const createSeparateCalendar = document.getElementById('createSeparateCalendar').checked;
         const semesterName = document.getElementById('semester').value;
+        
+        // Get calendar selection
+        const calendarOption = CalendarSelection.getSelectedCalendarOption();
+        if (!calendarOption) {
+            alert('Please select a calendar option');
+            return;
+        }
+        
+        const createSeparateCalendar = (calendarOption.type === 'create');
 
         const events = [];
         for (let i = 0; i < numClasses; i++) {
@@ -101,6 +123,7 @@ function setupFormSubmission() {
                     start_date: beginDate,
                     end_date: endDate,
                     create_separate_calendar: createSeparateCalendar,
+                    calendar_type: calendarOption.type,
                     semester_name: semesterName
                 });
             }
@@ -115,8 +138,9 @@ function setupFormSubmission() {
             FormDataPersistence.clear();
             // Regenerate the class forms (1 class by default)
             generateClassForms(1);
-            // Re-select the current semester
+            // Re-select the current semester and refresh calendars
             autoSelectSemester();
+            CalendarSelection.refreshCalendarsForSemester(semesterName);
             await loadEvents();
         } catch (err) {
             console.error('Error creating schedule:', err);
@@ -309,9 +333,41 @@ function openEditModal(event) {
     // Populate time slot dropdown with correct options for these days
     populateEditTimeSlots(days);
     
-    // Now set the time slot value
+    // Parse time slot and determine if it's a preset or custom time
+    const timeSlot = event.time_slot || '';
     const timeSlotSelect = document.getElementById('editTimeSlot');
-    timeSlotSelect.value = event.time_slot || '';
+    
+    // Check if it's a preset time (exists in dropdown)
+    let isPresetTime = false;
+    const options = Array.from(timeSlotSelect.options);
+    for (let option of options) {
+        if (option.value === timeSlot) {
+            isPresetTime = true;
+            break;
+        }
+    }
+    
+    // If preset time, use dropdown; otherwise use custom inputs
+    const presetForm = document.getElementById('editTimePreset');
+    const customForm = document.getElementById('editTimeCustom');
+    
+    if (isPresetTime) {
+        presetForm.style.display = 'block';
+        customForm.style.display = 'none';
+        timeSlotSelect.value = timeSlot;
+    } else {
+        // Parse custom time from time slot string (e.g., \"9:00 AM - 10:00 AM\")
+        presetForm.style.display = 'none';
+        customForm.style.display = 'block';
+        
+        const [startStr, endStr] = timeSlot.split(' - ');
+        if (startStr && endStr) {
+            const startTime24 = parseTime12to24(startStr.trim());
+            const endTime24 = parseTime12to24(endStr.trim());
+            document.getElementById('editCustomStartTime').value = startTime24;
+            document.getElementById('editCustomEndTime').value = endTime24;
+        }
+    }
     
     // Format and set dates
     const startDateFormatted = formatDateForInput(event.start_date);
@@ -366,6 +422,20 @@ function closeEditModal() {
     }
 }
 
+// Toggle between preset and custom time inputs in edit form
+function toggleEditTimeMode() {
+    const presetForm = document.getElementById('editTimePreset');
+    const customForm = document.getElementById('editTimeCustom');
+    
+    if (presetForm.style.display !== 'none') {
+        presetForm.style.display = 'none';
+        customForm.style.display = 'block';
+    } else {
+        presetForm.style.display = 'block';
+        customForm.style.display = 'none';
+    }
+}
+
 // Format date for input field (YYYY-MM-DD)
 function formatDateForInput(dateStr) {
     if (!dateStr) {
@@ -406,14 +476,36 @@ async function submitEditForm(e) {
     const eventId = form.dataset.eventId;
     const className = document.getElementById('editClassName').value;
     const location = document.getElementById('editLocation').value;
-    const timeSlot = document.getElementById('editTimeSlot').value;
     const startDate = document.getElementById('editStartDate').value;
     const endDate = document.getElementById('editEndDate').value;
     
     const dayCheckboxes = document.querySelectorAll('input[name="editDays"]:checked');
     const days = Array.from(dayCheckboxes).map(cb => cb.value).join(',');
 
-    if (!className || !timeSlot || !days || !startDate || !endDate) {
+    // Get time slot from either preset or custom input
+    let timeSlot;
+    const presetForm = document.getElementById('editTimePreset');
+    if (presetForm.style.display !== 'none') {
+        // Using preset times
+        timeSlot = document.getElementById('editTimeSlot').value;
+        if (!timeSlot) {
+            alert('Please select a time slot');
+            return;
+        }
+    } else {
+        // Using custom times
+        const startTime = document.getElementById('editCustomStartTime').value;
+        const endTime = document.getElementById('editCustomEndTime').value;
+        if (!startTime || !endTime) {
+            alert('Please enter both start and end times');
+            return;
+        }
+        const start12Hour = convertTo12HourFormat(startTime);
+        const end12Hour = convertTo12HourFormat(endTime);
+        timeSlot = `${start12Hour} - ${end12Hour}`;
+    }
+
+    if (!className || !days || !startDate || !endDate) {
         alert('Please fill in all required fields');
         return;
     }
