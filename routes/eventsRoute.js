@@ -140,12 +140,18 @@ router.post('/', verifyToken, async (req, res) => {
             'Friday': 'FR'
         };
 
-        const daysArray = days.split(',').map(d => d.trim());
-        const recurringDays = daysArray.map(day => dayMap[day]).filter(Boolean);
-        const untilDate = new Date(end_date);
-        untilDate.setHours(23, 59, 59, 0);
-        const untilString = untilDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-        const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${recurringDays.join(',')};UNTIL=${untilString}`;
+        // Check if this is a one-time event (same start and end date)
+        const isOneTimeEvent = start_date === end_date;
+        let rrule = null;
+        
+        if (!isOneTimeEvent) {
+            const daysArray = days.split(',').map(d => d.trim());
+            const recurringDays = daysArray.map(day => dayMap[day]).filter(Boolean);
+            const untilDate = new Date(end_date);
+            untilDate.setHours(23, 59, 59, 0);
+            const untilString = untilDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            rrule = `RRULE:FREQ=WEEKLY;BYDAY=${recurringDays.join(',')};UNTIL=${untilString}`;
+        }
 
         // FIRST: Create event in database (with null google_event_id initially)
         // This ensures we only create in Google Calendar if database insertion succeeds

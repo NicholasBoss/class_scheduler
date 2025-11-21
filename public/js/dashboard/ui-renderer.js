@@ -60,6 +60,25 @@ function renderEventsList(events) {
             }
         }
         
+        // Determine if this is a recurring event or one-time event
+        const isRecurring = event.recurrence_rule && event.recurrence_rule.trim().length > 0;
+        
+        let dateOrDaysDisplay = '';
+        if (isRecurring) {
+            // Show days for recurring events
+            dateOrDaysDisplay = `<p><strong>Days:</strong> ${event.days}</p>`;
+        } else {
+            // Show date for one-time events
+            const eventDate = new Date(event.start_date);
+            const formattedDate = eventDate.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            dateOrDaysDisplay = `<p><strong>Date:</strong> ${formattedDate}</p>`;
+        }
+        
         html += `
             <div class="event-card ${statusClass}">
                 <div class="event-card-header">
@@ -71,7 +90,7 @@ function renderEventsList(events) {
                     </div>
                 </div>
                 <p><strong>Location:</strong> ${locationLink}</p>
-                <p><strong>Days:</strong> ${event.days}</p>
+                ${dateOrDaysDisplay}
                 <p><strong>Time:</strong> ${event.time_slot}</p>
             </div>
         `;
