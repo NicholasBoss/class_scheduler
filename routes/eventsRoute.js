@@ -141,7 +141,10 @@ router.post('/', verifyToken, async (req, res) => {
         };
 
         // Check if this is a one-time event (same start and end date)
-        const isOneTimeEvent = start_date === end_date;
+        // Extract just the date portion (YYYY-MM-DD) for comparison, ignoring any time component
+        const startDateOnly = start_date instanceof Date ? start_date.toISOString().split('T')[0] : String(start_date).split('T')[0];
+        const endDateOnly = end_date instanceof Date ? end_date.toISOString().split('T')[0] : String(end_date).split('T')[0];
+        const isOneTimeEvent = startDateOnly === endDateOnly;
         let rrule = null;
         
         if (!isOneTimeEvent) {

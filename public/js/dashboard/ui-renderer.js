@@ -69,7 +69,18 @@ function renderEventsList(events) {
             dateOrDaysDisplay = `<p><strong>Days:</strong> ${event.days}</p>`;
         } else {
             // Show date for one-time events
-            const eventDate = new Date(event.start_date);
+            // Parse the date string directly to avoid timezone issues
+            // start_date comes as ISO string, extract just the date part
+            let displayDate = event.start_date;
+            if (typeof displayDate === 'string') {
+                // Handle ISO datetime string format
+                displayDate = displayDate.split('T')[0];
+            }
+            
+            // Parse the YYYY-MM-DD format directly
+            const [year, month, day] = displayDate.split('-').map(Number);
+            const eventDate = new Date(year, month - 1, day);
+            
             const formattedDate = eventDate.toLocaleDateString('en-US', { 
                 weekday: 'long', 
                 year: 'numeric', 
