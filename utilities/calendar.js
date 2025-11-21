@@ -299,7 +299,8 @@ async function deleteGoogleEvent(userAccessToken, googleEventId, calendarId = 'p
         return true;
     } catch (err) {
         // If event not found on Google Calendar, that's okay - it was already deleted
-        if (err.message && err.message.includes('404')) {
+        const status = err.response?.status || err.status;
+        if (status === 404 || (err.message && err.message.includes('404'))) {
             console.log('⚠ Event not found on Google Calendar (already deleted or never synced):', googleEventId);
             return true; // Treat as success since the event is gone
         }
@@ -344,5 +345,6 @@ module.exports = {
     deleteGoogleEvent,
     getGoogleCalendarLink,
     createGoogleCalendar,
-    refreshGoogleAccessToken
+    refreshGoogleAccessToken,
+    getCalendarClient
 };

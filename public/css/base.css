@@ -692,6 +692,57 @@ footer a:hover {
     text-decoration: underline;
 }
 
+/* Event status badge styles */
+.event-status {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.event-status.synced {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.event-status.missing {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.event-status.not-synced {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.event-status.no-auth {
+    background-color: #e2e3e5;
+    color: #383d41;
+    border: 1px solid #d6d8db;
+}
+
+/* Event card status indicators */
+.event-card.status-badge-synced {
+    border-left-color: #28a745;
+}
+
+.event-card.status-badge-missing {
+    border-left-color: #dc3545;
+}
+
+.event-card.status-badge-not-synced {
+    border-left-color: #ffc107;
+}
+
+.event-card.status-badge-no-auth {
+    border-left-color: #6c757d;
+}
+
 .location-input-group {
     display: flex;
     flex-direction: column;
@@ -1023,4 +1074,83 @@ footer a:hover {
 
 .back-link:hover {
     color: #5568d3;
+}
+
+/* Sync Status Styles */
+.sync-status-summary {
+    background-color: #f0f4ff;
+    border-left: 4px solid #667eea;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.sync-status-summary p {
+    margin: 0 0 10px 0;
+    font-weight: 600;
+    color: #333;
+}
+
+.sync-status-summary ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.sync-status-summary li {
+    margin: 5px 0;
+    color: #555;
+}
+
+.sync-status-event-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.sync-status-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    border-left: 3px solid #ddd;
+    background-color: #fafafa;
+}
+
+.sync-status-item.status-synced {
+    border-left-color: #4CAF50;
+    background-color: #f1f8f4;
+}
+
+.sync-status-item.status-missing {
+    border-left-color: #f44336;
+    background-color: #fef1f0;
+}
+
+.sync-status-item.status-not_synced {
+    border-left-color: #ff9800;
+    background-color: #fef7f0;
+}
+
+.sync-status-item.status-no_auth {
+    border-left-color: #ffb300;
+    background-color: #fffef0;
+}
+
+.status-badge {
+    font-size: 18px;
+    font-weight: bold;
+    min-width: 30px;
+    margin-right: 10px;
+}
+
+.event-name {
+    flex: 1;
+    font-weight: 500;
+    color: #333;
+}
+
+.status-text {
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
 }

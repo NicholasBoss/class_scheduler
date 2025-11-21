@@ -142,6 +142,9 @@ function setupFormSubmission() {
             autoSelectSemester();
             CalendarSelection.refreshCalendarsForSemester(semesterName);
             await loadEvents();
+            
+            // Check sync status after 5-10 seconds and re-render with status badges
+            checkSyncStatusAfterDelay(7000);
         } catch (err) {
             console.error('Error creating schedule:', err);
             

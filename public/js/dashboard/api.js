@@ -60,6 +60,26 @@ async function createSchedule(events) {
     }
 }
 
+// Check sync status after event creation (with delay for Google Calendar to process)
+async function checkSyncStatusAfterDelay(delayMs = 7000) {
+    try {
+        // Wait for specified delay
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        
+        // Check sync status
+        if (typeof SyncStatusChecker !== 'undefined') {
+            await SyncStatusChecker.init();
+        }
+        
+        // Re-render events with updated status
+        await loadEvents();
+        
+        console.log('✓ Events re-rendered with sync status');
+    } catch (err) {
+        console.error('Error checking sync status after creation:', err);
+    }
+}
+
 // Delete event
 async function deleteEventAPI(eventId) {
     try {

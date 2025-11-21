@@ -7,6 +7,9 @@ function renderEventsList(events) {
         return;
     }
 
+    // Get sync status map if available
+    const statusMap = (typeof SyncStatusChecker !== 'undefined') ? SyncStatusChecker.getStatusMap() : {};
+
     let html = '<div class="events-list">';
     events.forEach(event => {
         // Create a clickable location link (BYU-I Campus Map)
@@ -34,11 +37,35 @@ function renderEventsList(events) {
             }
         }
         
+        // Determine status badge and text
+        let statusBadge = '';
+        let statusClass = '';
+        const eventStatus = statusMap[event.event_id];
+        
+        if (eventStatus) {
+            statusClass = `status-badge-${eventStatus}`;
+            switch (eventStatus) {
+                case 'synced':
+                    statusBadge = '<span class="event-status synced">✓ Synced</span>';
+                    break;
+                case 'missing':
+                    statusBadge = '<span class="event-status missing">✗ Missing</span>';
+                    break;
+                case 'not_synced':
+                    statusBadge = '<span class="event-status not-synced">⊘ Not Synced</span>';
+                    break;
+                case 'no_auth':
+                    statusBadge = '<span class="event-status no-auth">⚠ No Auth</span>';
+                    break;
+            }
+        }
+        
         html += `
-            <div class="event-card">
+            <div class="event-card ${statusClass}">
                 <div class="event-card-header">
                     <h3>${event.class_name}</h3>
                     <div class="event-actions">
+                        ${statusBadge}
                         <button class="btn-edit" onclick="editEvent(${event.event_id})">Edit</button>
                         <button class="btn-delete" onclick="deleteEvent(${event.event_id})">Delete</button>
                     </div>

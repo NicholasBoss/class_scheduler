@@ -556,4 +556,84 @@ function convertTimeToISO(timeString) {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
 }
 
+// Check sync status of all events with Google Calendar
+router.get('/sync-status/check', verifyToken, async (req, res) => {
+    try {
+        console.log('📡 /sync-status/check endpoint called for user:', req.user.account_id);
+        
+        const getEventsQuery = `
+            SELECT event_id, class_name, google_event_id, semester_name FROM events 
+            WHERE account_id = $1
+        `;
+        const eventsResult = await pool.query(getEventsQuery, [req.user.account_id]);
+        const events = eventsResult.rows;
+        console.log('📊 Found', events.length, 'events in database');
+
+        const accessTokenQuery = 'SELECT google_access_token FROM account WHERE account_id = $1';
+        const tokenResult = await pool.query(accessTokenQuery, [req.user.account_id]);
+        
+        if (!tokenResult.rows.length || !tokenResult.rows[0].google_access_token) {
+            console.log('⚠️ No Google access token found');
+            return res.json({
+                events: events.map(e => ({
+                    event_id: e.event_id,
+                    class_name: e.class_name,
+                    google_event_id: e.google_event_id,
+                    exists_on_google: null,
+                    status: 'no_auth'
+                }))
+            });
+        }
+
+        const accessToken = tokenResult.rows[0].google_access_token;
+        const google = require('googleapis').google;
+        const { getCalendarClient } = require('../utilities/calendar');
+        const auth = await getCalendarClient(accessToken);
+        const calendar = google.calendar({ version: 'v3', auth });
+
+        // Check each event
+        const syncStatus = await Promise.all(events.map(async (event) => {
+            let exists = false;
+            let calendarId = 'primary';
+
+            if (event.semester_name) {
+                const calendarCheckQuery = `
+                    SELECT google_calendar_id FROM semester_calendars 
+                    WHERE account_id = $1 AND semester_name = $2
+                `;
+                const calendarCheckResult = await pool.query(calendarCheckQuery, [req.user.account_id, event.semester_name]);
+                if (calendarCheckResult.rows.length > 0) {
+                    calendarId = calendarCheckResult.rows[0].google_calendar_id;
+                }
+            }
+
+            if (event.google_event_id) {
+                try {
+                    await calendar.events.get({
+                        calendarId: calendarId,
+                        eventId: event.google_event_id
+                    });
+                    exists = true;
+                } catch (err) {
+                    exists = err.response?.status !== 404;
+                }
+            }
+
+            return {
+                event_id: event.event_id,
+                class_name: event.class_name,
+                google_event_id: event.google_event_id,
+                exists_on_google: exists,
+                status: event.google_event_id ? (exists ? 'synced' : 'missing') : 'not_synced'
+            };
+        }));
+
+        console.log('✅ Sync status check complete, returning', syncStatus.length, 'results');
+        res.json({ events: syncStatus });
+    } catch (err) {
+        console.error('❌ Error checking sync status:', err);
+        res.status(500).json({ error: 'Failed to check sync status' });
+    }
+});
+
 module.exports = router;
