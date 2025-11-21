@@ -82,7 +82,31 @@
 
         <!-- Events List Section -->
         <div class="events-section">
-            <h2>Your Scheduled Classes</h2>
+            <div class="events-header">
+                <h2>Your Scheduled Events</h2>
+                <!-- Sync Status Legend -->
+                <div class="sync-status-legend">
+                    <div class="legend-title">Google Calendar Sync Status:</div>
+                    <div class="legend-items">
+                        <div class="legend-item">
+                            <span class="legend-symbol synced">✓</span>
+                            <span class="legend-text">Synced</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-symbol missing">✗</span>
+                            <span class="legend-text">Missing</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-symbol not-synced">⊘</span>
+                            <span class="legend-text">Not Synced</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-symbol no-auth">⚠</span>
+                            <span class="legend-text">No Auth</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div id="eventListContainer">
                 <div class="loading">Loading your events...</div>
             </div>

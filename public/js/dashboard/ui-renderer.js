@@ -46,16 +46,16 @@ function renderEventsList(events) {
             statusClass = `status-badge-${eventStatus}`;
             switch (eventStatus) {
                 case 'synced':
-                    statusBadge = '<span class="event-status synced">✓ Synced</span>';
+                    statusBadge = '<span class="event-status synced" data-symbol="✓">✓ Synced</span>';
                     break;
                 case 'missing':
-                    statusBadge = '<span class="event-status missing">✗ Missing</span>';
+                    statusBadge = '<span class="event-status missing" data-symbol="✗">✗ Missing</span>';
                     break;
                 case 'not_synced':
-                    statusBadge = '<span class="event-status not-synced">⊘ Not Synced</span>';
+                    statusBadge = '<span class="event-status not-synced" data-symbol="⊘">⊘ Not Synced</span>';
                     break;
                 case 'no_auth':
-                    statusBadge = '<span class="event-status no-auth">⚠ No Auth</span>';
+                    statusBadge = '<span class="event-status no-auth" data-symbol="⚠">⚠ No Auth</span>';
                     break;
             }
         }

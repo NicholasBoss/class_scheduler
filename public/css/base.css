@@ -1154,3 +1154,111 @@ footer a:hover {
     color: #666;
     white-space: nowrap;
 }
+
+/* Mobile view adjustments */
+@media (max-width: 767px) {
+    .event-status {
+        padding: 4px 6px;
+        font-size: 0;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .event-status::before {
+        font-size: 16px;
+        content: attr(data-symbol);
+    }
+    
+    .sync-status-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 10px;
+    }
+    
+    .legend-items {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+}
+
+@media (min-width: 768px) {
+    .sync-status-legend {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-top: 5px;
+        font-size: 13px;
+    }
+    
+    .legend-title {
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    
+    .legend-items {
+        display: flex;
+        gap: 20px;
+    }
+}
+
+/* Legend styling */
+.events-header {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sync-status-legend {
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    border-left: 3px solid #667eea;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-symbol {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.legend-symbol.synced {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.legend-symbol.missing {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.legend-symbol.not-synced {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.legend-symbol.no-auth {
+    background-color: #e2e3e5;
+    color: #383d41;
+}
+
+.legend-text {
+    font-size: 13px;
+    color: #333;
+}
