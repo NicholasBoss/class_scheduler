@@ -38,13 +38,32 @@ const CalendarSelection = (() => {
             return;
         }
 
-        // Clear existing options except the first two
+        // Get the currently selected semester
+        const semesterSelect = document.getElementById('semester');
+        const selectedSemester = semesterSelect ? semesterSelect.value : '';
+
+        // Check if a calendar already exists for this semester
+        const calendarExistsForSemester = existingCalendars.some(cal => cal.semester_name === selectedSemester);
+
+        // Clear existing options except the first two (placeholder and primary)
         const options = select.querySelectorAll('option');
         options.forEach((option, index) => {
             if (index > 1) {
                 option.remove();
             }
         });
+
+        // Only add "Create a new calendar" option if no calendar exists for this semester
+        if (!calendarExistsForSemester) {
+            // Find the index where to insert the create option (after primary)
+            const primaryOption = select.querySelector('option[value="primary"]');
+            if (primaryOption) {
+                const createOption = document.createElement('option');
+                createOption.value = 'create';
+                createOption.textContent = 'Create a new calendar for this semester';
+                primaryOption.parentNode.insertBefore(createOption, primaryOption.nextSibling);
+            }
+        }
 
         // Add existing calendars to dropdown
         existingCalendars.forEach(calendar => {
@@ -127,6 +146,7 @@ const CalendarSelection = (() => {
     // Refresh calendars when semester changes
     async function refreshCalendarsForSemester(semesterName) {
         await loadExistingCalendars();
+        populateCalendarOptions();
         
         // Auto-select existing calendar if available for this semester
         const select = document.getElementById('calendarSelection');
@@ -139,8 +159,14 @@ const CalendarSelection = (() => {
                 select.value = `use:${semesterName}`;
                 // console.log(`Auto-selected existing calendar for ${semesterName}`);
             } else {
-                select.value = 'create';
-                console.log(`No existing calendar for ${semesterName}, will create new one`);
+                // Only set to create if that option exists
+                const createOption = Array.from(select.options).find(opt => opt.value === 'create');
+                if (createOption) {
+                    select.value = 'create';
+                    console.log(`No existing calendar for ${semesterName}, will create new one`);
+                } else {
+                    console.log(`Calendar already exists for ${semesterName}, create option hidden`);
+                }
             }
         }
     }
