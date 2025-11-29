@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../database/');
 const { verifyToken } = require('../utilities/auth');
-const { createRecurringEvent, updateRecurringEvent, deleteGoogleEvent, getGoogleCalendarLink, createGoogleCalendar, refreshGoogleAccessToken } = require('../utilities/calendar');
+const { createRecurringEvent, updateRecurringEvent, deleteGoogleEvent, getGoogleCalendarLink, createGoogleCalendar, refreshGoogleAccessToken, getGoogleColorIdFromHex, getEventColorHexFromId, updateCalendarColor, GOOGLE_CALENDAR_COLORS } = require('../utilities/calendar');
 
 const router = express.Router();
 
@@ -70,12 +70,22 @@ function validateLocation(location) {
 router.get('/', verifyToken, async (req, res) => {
     try {
         const query = `
-            SELECT * FROM events 
-            WHERE account_id = $1 
-            ORDER BY created_at DESC
+            SELECT e.*, 
+                   COALESCE(e.color_hex, sc.color_hex) as display_color_hex
+            FROM events e
+            LEFT JOIN semester_calendars sc ON e.semester_name = sc.semester_name AND e.account_id = sc.account_id
+            WHERE e.account_id = $1 
+            ORDER BY e.created_at DESC
         `;
         const result = await pool.query(query, [req.user.account_id]);
-        res.json(result.rows);
+        
+        // Map the display_color_hex back to color_hex for frontend compatibility
+        const events = result.rows.map(event => ({
+            ...event,
+            color_hex: event.display_color_hex || event.color_hex
+        }));
+        
+        res.json(events);
     } catch (err) {
         console.error('Error fetching events:', err);
         res.status(500).json({ error: 'Failed to fetch events' });
@@ -85,16 +95,33 @@ router.get('/', verifyToken, async (req, res) => {
 // Get existing semester calendars for current user
 router.get('/calendars/semesters', verifyToken, async (req, res) => {
     try {
+        console.log('\n📋 [GET /calendars/semesters] Fetching calendars for account:', req.user.account_id);
+        
         const query = `
-            SELECT semester_name, google_calendar_id 
+            SELECT calendar_id, semester_name, google_calendar_id, color_hex 
             FROM semester_calendars 
             WHERE account_id = $1 
             ORDER BY semester_name
         `;
         const result = await pool.query(query, [req.user.account_id]);
-        res.json(result.rows);
+        console.log(`   Found ${result.rows.length} calendars in database`);
+        
+        // Add color ID for each calendar
+        const calendars = result.rows.map(cal => {
+            const colorId = getGoogleColorIdFromHex(cal.color_hex);
+            const colorData = GOOGLE_CALENDAR_COLORS.calendar[colorId] || GOOGLE_CALENDAR_COLORS.calendar['1'];
+            console.log(`   ✓ ${cal.semester_name}: colorHex=${cal.color_hex} -> colorId=${colorId}`);
+            return {
+                ...cal,
+                color_id: colorId,
+                color_foreground: colorData?.foreground || '#1d1d1d'
+            };
+        });
+        
+        console.log(`   Sending ${calendars.length} calendars to client`);
+        res.json(calendars);
     } catch (err) {
-        console.error('Error fetching semester calendars:', err);
+        console.error('❌ Error fetching semester calendars:', err);
         res.status(500).json({ error: 'Failed to fetch semester calendars' });
     }
 });
@@ -251,14 +278,14 @@ router.post('/', verifyToken, async (req, res) => {
                             );
                             googleCalendarId = newCalendar.id;
                             
-                            // Store the calendar mapping in database
+                            // Store the calendar mapping in database with default color
                             const insertCalendarQuery = `
-                                INSERT INTO semester_calendars (account_id, semester_name, google_calendar_id, created_at)
-                                VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+                                INSERT INTO semester_calendars (account_id, semester_name, google_calendar_id, color_hex, created_at)
+                                VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
                                 ON CONFLICT (account_id, semester_name) DO UPDATE 
-                                SET google_calendar_id = $3
+                                SET google_calendar_id = $3, color_hex = $4
                             `;
-                            await pool.query(insertCalendarQuery, [req.user.account_id, semester_name, googleCalendarId]);
+                            await pool.query(insertCalendarQuery, [req.user.account_id, semester_name, googleCalendarId, '#039be5']);
                             console.log(`✓ Created and stored new semester calendar: ${googleCalendarId}`);
                         }
                     } catch (calendarErr) {
@@ -642,6 +669,178 @@ router.get('/sync-status/check', verifyToken, async (req, res) => {
     } catch (err) {
         console.error('❌ Error checking sync status:', err);
         res.status(500).json({ error: 'Failed to check sync status' });
+    }
+});
+
+// Get all available Google Calendar colors
+router.get('/colors/list', verifyToken, (req, res) => {
+    try {
+        // console.log('\n🌈 [GET /colors/list] Fetching available colors');
+        
+        const colors = Object.entries(GOOGLE_CALENDAR_COLORS.calendar).map(([id, data]) => ({
+            id,
+            hex: data.background,
+            foreground: data.foreground
+        }));
+        
+        // console.log(`   Returning ${colors.length} colors:`);
+        // colors.forEach(c => {
+        //     console.log(`   ${c.id}: ${c.hex}`);
+        // });
+        
+        res.json(colors);
+    } catch (err) {
+        console.error('❌ Error fetching colors:', err);
+        res.status(500).json({ error: 'Failed to fetch colors' });
+    }
+});
+
+// Get event colors (IDs 1-11)
+router.get('/colors/event', verifyToken, (req, res) => {
+    try {
+        const colors = Object.entries(GOOGLE_CALENDAR_COLORS.event).map(([id, data]) => ({
+            id,
+            hex: data.background,
+            foreground: data.foreground
+        }));
+        
+        res.json(colors);
+    } catch (err) {
+        console.error('❌ Error fetching event colors:', err);
+        res.status(500).json({ error: 'Failed to fetch event colors' });
+    }
+});
+
+// Update calendar color
+router.put('/calendars/:calendarId/color', verifyToken, async (req, res) => {
+    try {
+        const { calendarId } = req.params;
+        const { colorId, colorHex } = req.body;
+
+        // console.log('\n🎨 [PUT /calendars/:calendarId/color] Color update request');
+        // console.log(`   Account: ${req.user.account_id}`);
+        // console.log(`   Calendar ID: ${calendarId}`);
+        // console.log(`   Requested colorId: ${colorId}, colorHex: ${colorHex}`);
+
+        if (!colorId && !colorHex) {
+            console.warn('   ⚠ No colorId or colorHex provided');
+            return res.status(400).json({ error: 'Either colorId or colorHex is required' });
+        }
+
+        // Get user's Google access token
+        const tokenQuery = 'SELECT google_access_token FROM account WHERE account_id = $1';
+        const tokenResult = await pool.query(tokenQuery, [req.user.account_id]);
+
+        if (!tokenResult.rows.length || !tokenResult.rows[0].google_access_token) {
+            console.warn('   ⚠ No Google access token found');
+            return res.status(401).json({ error: 'Google Calendar not connected' });
+        }
+
+        let accessToken = tokenResult.rows[0].google_access_token;
+        console.log('   ✓ Google access token retrieved');
+
+        // Try to refresh token
+        try {
+            accessToken = await refreshGoogleAccessToken(req.user.account_id);
+            console.log('   ✓ Google access token refreshed');
+        } catch (refreshErr) {
+            console.warn('   ⚠ Could not refresh token, using existing:', refreshErr.message);
+        }
+
+        // Determine the color ID to use
+        let finalColorId = colorId;
+        if (colorHex && !colorId) {
+            finalColorId = getGoogleColorIdFromHex(colorHex);
+            // console.log(`   Converted hex ${colorHex} to colorId ${finalColorId}`);
+        } else {
+            console.log(`   Using provided colorId: ${finalColorId}`);
+        }
+
+        // Get the hex value for storage
+        const hexValue = colorHex || GOOGLE_CALENDAR_COLORS.calendar[finalColorId]?.background || '#039be5';
+        // console.log(`   Final hex value for storage: ${hexValue}`);
+
+        // Update calendar color in Google Calendar
+        // console.log(`   📡 Updating Google Calendar ${calendarId} with colorId ${finalColorId}...`);
+        const response = await updateCalendarColor(accessToken, calendarId, finalColorId);
+        // console.log(`   ✓ Google Calendar updated successfully`);
+
+        // Save color to database for the semester calendar
+        try {
+            const updateColorQuery = `
+                UPDATE semester_calendars 
+                SET color_hex = $1 
+                WHERE google_calendar_id = $2 AND account_id = $3
+            `;
+            const dbResult = await pool.query(updateColorQuery, [hexValue, calendarId, req.user.account_id]);
+            // console.log(`   ✓ Database updated: ${dbResult.rowCount} row(s) modified`);
+        } catch (dbErr) {
+            console.warn('   ⚠ Could not save color to database:', dbErr.message);
+            // Don't fail the request if database save fails, Google Calendar was updated
+        }
+
+        try {
+            const updateEventColorQuery = `
+                UPDATE events
+                SET color_hex = NULL
+                WHERE semester_name IN (
+                    SELECT semester_name FROM semester_calendars 
+                    WHERE google_calendar_id = $1 AND account_id = $2
+                ) AND account_id = $2
+            `;
+            const eventDbResult = await pool.query(updateEventColorQuery, [calendarId, req.user.account_id]);
+            // console.log(`   ✓ Event colors updated in database: ${eventDbResult.rowCount} row(s) modified`);
+            
+            // Also update events on Google Calendar to remove their individual colors
+            try {
+                const getEventsQuery = `
+                    SELECT google_event_id FROM events
+                    WHERE semester_name IN (
+                        SELECT semester_name FROM semester_calendars 
+                        WHERE google_calendar_id = $1 AND account_id = $2
+                    ) AND account_id = $2 AND google_event_id IS NOT NULL
+                `;
+                const eventsResult = await pool.query(getEventsQuery, [calendarId, req.user.account_id]);
+                
+                if (eventsResult.rows.length > 0) {
+                    const auth = await getCalendarClient(accessToken);
+                    const calendar = google.calendar({ version: 'v3', auth });
+                    
+                    // Update each event to remove its color (colorId field)
+                    for (const event of eventsResult.rows) {
+                        try {
+                            await calendar.events.update({
+                                calendarId: calendarId,
+                                eventId: event.google_event_id,
+                                requestBody: {
+                                    colorId: null  // Remove individual event color
+                                }
+                            });
+                            console.log(`   ✓ Removed event color for ${event.google_event_id}`);
+                        } catch (updateErr) {
+                            console.warn(`   ⚠ Could not update event ${event.google_event_id}:`, updateErr.message);
+                        }
+                    }
+                }
+            } catch (googleErr) {
+                console.warn('   ⚠ Could not update events on Google Calendar:', googleErr.message);
+            }
+        } catch (eventDbErr) {
+            console.warn('   ⚠ Could not update event colors in database:', eventDbErr.message);
+            // Don't fail the request if database save fails, Google Calendar was updated
+        }
+
+        // console.log(`   ✅ Color update complete: colorId=${finalColorId}, hex=${hexValue}`);
+        res.json({
+            success: true,
+            message: 'Calendar and event colors updated successfully',
+            colorId: finalColorId,
+            colorHex: hexValue,
+            calendar: response
+        });
+    } catch (err) {
+        console.error('❌ Error updating calendar color:', err);
+        res.status(500).json({ error: 'Failed to update calendar color', details: err.message });
     }
 });
 

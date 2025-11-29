@@ -437,14 +437,35 @@ footer a:hover {
 
 .calendar-list ul {
     margin: 0;
-    padding-left: 20px;
-    list-style-type: disc;
+    padding-left: 0;
+    list-style-type: none;
 }
 
-.calendar-list li {
+.calendar-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    margin: 6px 0;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
     font-size: 13px;
     color: #555;
-    margin: 4px 0;
+}
+
+.calendar-color-box {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-name {
+    flex: 1;
+    font-weight: 500;
 }
 
 /* Calendar Status Section */
@@ -1261,4 +1282,39 @@ footer a:hover {
 .legend-text {
     font-size: 13px;
     color: #333;
+}
+
+/* Calendar Edit Color Button */
+.btn-edit-color {
+    background-color: #667eea;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    flex-shrink: 0;
+    font-weight: 500;
+}
+
+.btn-edit-color:hover {
+    background-color: #5568d3;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.btn-edit-color:active {
+    transform: translateY(0);
+}
+
+/* Event Color Indicator */
+.event-color-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: 10px;
+    vertical-align: middle;
+    border: 1px solid rgba(0, 0, 0, 0.2);
 }

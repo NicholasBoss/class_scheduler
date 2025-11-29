@@ -11,6 +11,7 @@ const CalendarSelection = (() => {
     // Load existing semester calendars
     async function loadExistingCalendars() {
         try {
+            // console.log('🔄 Loading semester calendars...');
             const response = await fetch(`${API_BASE_URL}/events/calendars/semesters`, {
                 credentials: 'include'
             });
@@ -20,7 +21,10 @@ const CalendarSelection = (() => {
             }
 
             existingCalendars = await response.json();
-            // console.log('Loaded semester calendars:', existingCalendars);
+            // console.log('✓ Loaded semester calendars:', existingCalendars);
+            existingCalendars.forEach(cal => {
+                // console.log(`  ${cal.semester_name}: colorId=${cal.color_id}, colorHex=${cal.color_hex}`);
+            });
             populateCalendarOptions();
         } catch (err) {
             console.error('Error loading semester calendars:', err);
@@ -82,16 +86,50 @@ const CalendarSelection = (() => {
         const listContainer = document.getElementById('existingCalendars');
         if (!listContainer) return;
 
+        // console.log('📋 Updating calendar list with', existingCalendars.length, 'calendars');
+
         if (existingCalendars.length === 0) {
             listContainer.innerHTML = '<p class="calendar-info">No existing semester calendars found</p>';
         } else {
             let html = '<div class="calendar-list"><p class="calendar-info">Your existing calendars:</p><ul>';
             existingCalendars.forEach(calendar => {
-                html += `<li>${calendar.semester_name} semester</li>`;
+                // console.log(`  Rendering: ${calendar.semester_name}, colorId=${calendar.color_id}, hex=${calendar.color_hex}`);
+                html += `
+                    <li class="calendar-item">
+                        <div class="calendar-color-box" style="background-color: ${calendar.color_hex || '#616161'};" title="Calendar color"></div>
+                        <span class="calendar-name">${calendar.semester_name} semester</span>
+                        <button type="button" class="btn-edit-color" data-calendar-id="${calendar.google_calendar_id}" data-calendar-name="${calendar.semester_name}" data-color-id="${calendar.color_id || ''}" title="Change calendar color">Edit Color</button>
+                    </li>
+                `;
             });
             html += '</ul></div>';
             listContainer.innerHTML = html;
+            // console.log('✓ Calendar list updated');
+            
+            // Attach event listeners to color edit buttons
+            attachColorButtonListeners();
         }
+    }
+
+    // Attach listeners to color edit buttons
+    function attachColorButtonListeners() {
+        const editButtons = document.querySelectorAll('.btn-edit-color');
+        // console.log(`🎨 Attaching listeners to ${editButtons.length} color buttons`);
+        editButtons.forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const calendarId = btn.dataset.calendarId;
+                const calendarName = btn.dataset.calendarName;
+                const colorId = btn.dataset.colorId;
+                // console.log(`🖱️ Color button clicked: ${calendarName}, colorId=${colorId}`);
+                
+                if (typeof ColorPicker !== 'undefined') {
+                    await ColorPicker.openModal(calendarId, calendarName, colorId || null);
+                } else {
+                    console.error('❌ ColorPicker module not available');
+                }
+            });
+        });
     }
 
     // Setup listener for calendar selection changes
@@ -115,7 +153,7 @@ const CalendarSelection = (() => {
         } else if (value.startsWith('use:')) {
             // Using existing calendar
             const semesterName = value.substring(4);
-            console.log('Using existing calendar for:', semesterName);
+            // console.log('Using existing calendar for:', semesterName);
         }
         
         // Save form data when calendar selection changes

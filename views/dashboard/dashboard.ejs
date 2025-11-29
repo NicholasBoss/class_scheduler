@@ -214,6 +214,25 @@
             </div>
         </div>
     </div>
+
+    <!-- Color Picker Modal -->
+    <div id="colorPickerModal" class="modal" style="display: none;">
+        <div class="modal-content modal-color-picker">
+            <div class="modal-header">
+                <h2>Select Color</h2>
+                <span class="close" onclick="ColorPicker.closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="colorPickerMessage" class="color-message" style="display: none;"></div>
+                <div class="color-grid-container">
+                    <div id="colorGrid" class="color-grid"></div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-save-color" onclick="ColorPicker.closeModal()">Done</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -231,6 +250,7 @@
 <script src="/js/dashboard/calendar-selection.js"></script>
 <script src="/js/dashboard/google-auth-status.js"></script>
 <script src="/js/dashboard/sync-status.js"></script>
+<script src="/js/dashboard/color-picker.js"></script>
 <script src="/js/dashboard/api.js"></script>
 <script src="/js/dashboard/ui-renderer.js"></script>
 <script src="/js/dashboard/form-submission.js"></script>

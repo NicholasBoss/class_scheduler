@@ -3,6 +3,9 @@ async function initializeDashboard() {
     // Check Google Calendar authorization status
     await GoogleAuthStatus.checkAuthStatus();
     
+    // Initialize color picker
+    await ColorPicker.init();
+    
     // Setup all event listeners
     setupSemesterListener();
     setupFormFieldListeners();

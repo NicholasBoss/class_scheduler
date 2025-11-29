@@ -103,6 +103,8 @@ function renderEventsList(events) {
                 <p><strong>Location:</strong> ${locationLink}</p>
                 ${dateOrDaysDisplay}
                 <p><strong>Time:</strong> ${event.time_slot}</p>
+
+                
             </div>
         `;
     });

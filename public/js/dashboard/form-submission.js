@@ -275,6 +275,8 @@ function setupClassFormListeners() {
 }
 
 // Edit event function
+// Render event color picker grid in edit modal
+
 async function editEvent(eventId) {
     try {
         // Get token from localStorage
@@ -517,6 +519,15 @@ async function submitEditForm(e) {
         // Get token from localStorage
         const token = localStorage.getItem('token');
         
+        const payload = {
+            class_name: className,
+            location,
+            time_slot: timeSlot,
+            days,
+            start_date: startDate,
+            end_date: endDate
+        };
+        
         const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
             method: 'PUT',
             headers: {
@@ -524,14 +535,7 @@ async function submitEditForm(e) {
                 'Authorization': `Bearer ${token}`
             },
             credentials: 'include',
-            body: JSON.stringify({
-                class_name: className,
-                location,
-                time_slot: timeSlot,
-                days,
-                start_date: startDate,
-                end_date: endDate
-            })
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {

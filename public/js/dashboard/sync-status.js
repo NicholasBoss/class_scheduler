@@ -6,7 +6,7 @@ const SyncStatusChecker = (() => {
     async function checkSyncStatus() {
         try {
             const token = localStorage.getItem('token');
-            console.log('🔍 Checking sync status...');
+            // console.log('🔍 Checking sync status...');
             const response = await fetch(`${API_BASE_URL}/events/sync-status/check`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -20,7 +20,7 @@ const SyncStatusChecker = (() => {
             }
 
             const data = await response.json();
-            console.log('📊 Sync status response:', data);
+            // console.log('📊 Sync status response:', data);
             return data.events;
         } catch (err) {
             console.error('Error checking sync status:', err);
@@ -139,7 +139,7 @@ const SyncStatusChecker = (() => {
                 cachedStatusMap[event.event_id] = event.status;
             });
             // Don't display modal - just cache the status
-            console.log('✓ Sync status cached for event list display');
+            // console.log('✓ Sync status cached for event list display');
         }
     }
 
