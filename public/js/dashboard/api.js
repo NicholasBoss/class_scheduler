@@ -20,6 +20,9 @@ async function loadEvents() {
 // Create schedule (submit all events)
 async function createSchedule(events) {
     try {
+        let newCalendarCreated = false;
+        let newCalendarSemester = null;
+        
         for (const event of events) {
             const response = await fetch(`${API_BASE_URL}/events`, {
                 method: 'POST',
@@ -45,6 +48,12 @@ async function createSchedule(events) {
 
             const data = await response.json();
             
+            // Track if a new calendar was created
+            if (data.newCalendarCreated) {
+                newCalendarCreated = true;
+                newCalendarSemester = data.newCalendarSemester;
+            }
+            
             // Check for Google Calendar sync warnings
             if (data.google_sync && data.google_sync.status === 'pending' && data.google_sync.error) {
                 console.warn('⚠ Google Calendar sync warning:', data.google_sync.error);
@@ -53,7 +62,12 @@ async function createSchedule(events) {
             }
         }
         
-        return { success: true, message: '✓ Schedule created successfully!' };
+        return { 
+            success: true, 
+            message: '✓ Schedule created successfully!',
+            newCalendarCreated,
+            newCalendarSemester
+        };
     } catch (err) {
         console.error('Error creating schedule:', err);
         throw err;

@@ -1,9 +1,61 @@
+// Store all events globally for filtering
+let allEvents = [];
+
 // Render events list
 function renderEventsList(events) {
+    allEvents = events; // Store all events
+    
     const container = document.getElementById('eventListContainer');
     
     if (events.length === 0) {
         container.innerHTML = '<p>No events yet. Create one to get started!</p>';
+        return;
+    }
+
+    // Populate semester filter dropdown
+    populateSemesterFilter(events);
+    
+    // Display filtered events
+    displayFilteredEvents(events);
+}
+
+// Populate the semester filter dropdown
+function populateSemesterFilter(events) {
+    const filterSelect = document.getElementById('eventSemesterFilter');
+    if (!filterSelect) {
+        console.warn('Event semester filter dropdown not found');
+        return;
+    }
+    
+    // Get unique semesters
+    const semesters = [...new Set(events.map(event => event.semester_name))].sort();
+    
+    // Keep the "All Events" option and add semester options
+    filterSelect.innerHTML = '<option value="">All Events</option>';
+    
+    semesters.forEach(semester => {
+        const option = document.createElement('option');
+        option.value = semester;
+        option.textContent = semester;
+        filterSelect.appendChild(option);
+    });
+    
+    // Add event listener for filtering
+    filterSelect.addEventListener('change', (e) => {
+        const selectedSemester = e.target.value;
+        const filteredEvents = selectedSemester 
+            ? allEvents.filter(event => event.semester_name === selectedSemester)
+            : allEvents;
+        displayFilteredEvents(filteredEvents);
+    });
+}
+
+// Display the filtered events
+function displayFilteredEvents(events) {
+    const container = document.getElementById('eventListContainer');
+    
+    if (events.length === 0) {
+        container.innerHTML = '<p>No events found for the selected semester.</p>';
         return;
     }
 
@@ -100,6 +152,7 @@ function renderEventsList(events) {
                         <button class="btn-delete" onclick="deleteEvent(${event.event_id})">Delete</button>
                     </div>
                 </div>
+                <p><strong>Semester:</strong> ${event.semester_name}</p>
                 <p><strong>Location:</strong> ${locationLink}</p>
                 ${dateOrDaysDisplay}
                 <p><strong>Time:</strong> ${event.time_slot}</p>

@@ -42,7 +42,7 @@
     .modal-content {
         width: 90%;
         max-width: 500px;
-        margin: 20% auto;
+        /* margin: 20% auto; */
     }
 
     /* Dashboard */

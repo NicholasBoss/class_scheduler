@@ -164,7 +164,16 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
             console.log(`📅 Single day event on ${start_date}`);
         } else {
             // Multi-day recurring event
-            const dayMap = {
+            // Map day names to getDay() values (0=Sunday, 1=Monday, etc.)
+            const dayNameToGetDayValue = {
+                'Monday': 1,
+                'Tuesday': 2,
+                'Wednesday': 3,
+                'Thursday': 4,
+                'Friday': 5
+            };
+
+            const dayNameToRRuleValue = {
                 'Monday': 'MO',
                 'Tuesday': 'TU',
                 'Wednesday': 'WE',
@@ -172,7 +181,44 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
                 'Friday': 'FR'
             };
 
-            const recurringDays = days.split(',').map(day => dayMap[day.trim()]).filter(Boolean);
+            const recurringDays = days.split(',').map(day => dayNameToRRuleValue[day.trim()]).filter(Boolean);
+            const selectedDayNumbers = days.split(',').map(day => dayNameToGetDayValue[day.trim()]).filter(d => d !== undefined);
+            
+            // Find the first occurrence date that matches one of the selected days
+            // Start from the start_date and check if it matches, otherwise move forward
+            const [startYear, startMonth, startDay] = start_date.split('-').map(Number);
+            let firstOccurrenceDate = new Date(startYear, startMonth - 1, startDay);
+            
+            // Keep incrementing the date until we find a day that matches one of the selected days
+            let daysChecked = 0;
+            const maxDaysToCheck = 7; // Safety check to avoid infinite loops
+            
+            while (!selectedDayNumbers.includes(firstOccurrenceDate.getDay()) && daysChecked < maxDaysToCheck) {
+                firstOccurrenceDate.setDate(firstOccurrenceDate.getDate() + 1);
+                daysChecked++;
+            }
+            
+            // Format the first occurrence date as YYYY-MM-DD
+            const firstOccurrenceYear = firstOccurrenceDate.getFullYear();
+            const firstOccurrenceMonth = String(firstOccurrenceDate.getMonth() + 1).padStart(2, '0');
+            const firstOccurrenceDay = String(firstOccurrenceDate.getDate()).padStart(2, '0');
+            const firstOccurrenceDateString = `${firstOccurrenceYear}-${firstOccurrenceMonth}-${firstOccurrenceDay}`;
+            
+            console.log(`📅 Recurring event - Start date: ${start_date}, First occurrence: ${firstOccurrenceDateString}, Days: ${days}`);
+            
+            // Update the event to use the first occurrence date
+            const firstOccurrenceStartDateTime = createDateInTimezone(firstOccurrenceDateString, startTime, 'America/Denver');
+            const firstOccurrenceEndDateTime = createDateInTimezone(firstOccurrenceDateString, endTime, 'America/Denver');
+            
+            event.start = {
+                dateTime: firstOccurrenceStartDateTime.toISOString(),
+                timeZone: 'America/Denver'
+            };
+            
+            event.end = {
+                dateTime: firstOccurrenceEndDateTime.toISOString(),
+                timeZone: 'America/Denver'
+            };
             
             // Parse end_date as a local date string (YYYY-MM-DD) without timezone conversion
             // Add 1 day to UNTIL date because RRULE UNTIL is exclusive, not inclusive
@@ -186,7 +232,7 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
             const untilString = `${untilYear}${untilMonth}${untilDay}`;
             
             const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${recurringDays.join(',')};UNTIL=${untilString}`;
-            console.log(`📅 Recurring event - Original end_date: ${end_date}, RRULE: ${rrule}`);
+            console.log(`📅 Recurring RRULE: ${rrule}`);
             event.recurrence = [rrule];
         }
 
@@ -311,7 +357,7 @@ async function deleteGoogleEvent(userAccessToken, googleEventId, calendarId = 'p
 }
 
 // Create a new calendar for a semester
-async function createGoogleCalendar(userAccessToken, calendarName, calendarDescription) {
+async function createGoogleCalendar(userAccessToken, calendarName, calendarDescription, colorId = '16') {
     try {
         const auth = await getCalendarClient(userAccessToken);
         const calendar = google.calendar({ version: 'v3', auth });
@@ -327,6 +373,21 @@ async function createGoogleCalendar(userAccessToken, calendarName, calendarDescr
         });
 
         console.log('✓ Calendar created in Google Calendar:', response.data.id);
+        
+        // Set the calendar color after creation
+        try {
+            await calendar.calendarList.update({
+                calendarId: response.data.id,
+                requestBody: {
+                    colorId: String(colorId)
+                }
+            });
+            console.log(`✓ Calendar color set to colorId ${colorId}`);
+        } catch (colorErr) {
+            console.warn('⚠ Could not set calendar color:', colorErr.message);
+            // Continue - calendar was created even if color setting failed
+        }
+
         return response.data; // Returns { id, summary, description, etc. }
     } catch (err) {
         console.error('Error creating Google Calendar:', err.message);

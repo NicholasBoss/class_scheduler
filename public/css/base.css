@@ -603,8 +603,6 @@ footer a:hover {
     filter: invert(0.5);
 }
 
-
-
 .class-form {
     background: #f9f9f9;
     padding: 15px;
@@ -642,6 +640,43 @@ footer a:hover {
 .submit-btn:hover {
     opacity: 0.9;
 }
+
+/* Event Filter Styles */
+.event-filter-container {
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.event-filter-container label {
+    font-weight: 600;
+    color: #333;
+}
+
+.event-filter-container select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: white;
+    cursor: pointer;
+    min-width: 200px;
+}
+
+.event-filter-container select:hover {
+    border-color: #0066cc;
+}
+
+.event-filter-container select:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 5px rgba(0, 102, 204, 0.3);
+}
+
 
 .events-section {
     background: white;

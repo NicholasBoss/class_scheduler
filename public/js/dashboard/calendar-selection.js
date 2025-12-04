@@ -99,6 +99,7 @@ const CalendarSelection = (() => {
                         <div class="calendar-color-box" style="background-color: ${calendar.color_hex || '#616161'};" title="Calendar color"></div>
                         <span class="calendar-name">${calendar.semester_name} semester</span>
                         <button type="button" class="btn-edit-color" data-calendar-id="${calendar.google_calendar_id}" data-calendar-name="${calendar.semester_name}" data-color-id="${calendar.color_id || ''}" title="Change calendar color">Edit Color</button>
+                        <button type="button" class="btn-delete-calendar" data-calendar-id="${calendar.google_calendar_id}" data-calendar-name="${calendar.semester_name}" title="Delete calendar">Delete</button>
                     </li>
                 `;
             });
@@ -127,6 +128,20 @@ const CalendarSelection = (() => {
                     await ColorPicker.openModal(calendarId, calendarName, colorId || null);
                 } else {
                     console.error('❌ ColorPicker module not available');
+                }
+            });
+        });
+
+        // Attach delete button listeners
+        const deleteButtons = document.querySelectorAll('.btn-delete-calendar');
+        deleteButtons.forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const calendarId = btn.dataset.calendarId;
+                const calendarName = btn.dataset.calendarName;
+                
+                if (confirm(`Are you sure you want to delete the "${calendarName}" calendar? This cannot be undone.`)) {
+                    await deleteCalendar(calendarId, calendarName);
                 }
             });
         });
@@ -206,6 +221,30 @@ const CalendarSelection = (() => {
                     console.log(`Calendar already exists for ${semesterName}, create option hidden`);
                 }
             }
+        }
+    }
+
+    // Delete a calendar
+    async function deleteCalendar(calendarId, calendarName) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/events/calendars/${calendarId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete calendar');
+            }
+
+            alert(`✓ "${calendarName}" calendar deleted successfully`);
+            
+            // Reload calendars and refresh the UI
+            await loadExistingCalendars();
+            populateCalendarOptions();
+        } catch (err) {
+            console.error('Error deleting calendar:', err);
+            alert(`✗ Failed to delete calendar: ${err.message}`);
         }
     }
 

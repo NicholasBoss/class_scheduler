@@ -1,8 +1,8 @@
 const express = require('express');
 const pool = require('../database/');
 const { verifyToken } = require('../utilities/auth');
-const { createRecurringEvent, updateRecurringEvent, deleteGoogleEvent, getGoogleCalendarLink, createGoogleCalendar, refreshGoogleAccessToken, getGoogleColorIdFromHex, getEventColorHexFromId, updateCalendarColor, GOOGLE_CALENDAR_COLORS } = require('../utilities/calendar');
-
+const { createRecurringEvent, updateRecurringEvent, deleteGoogleEvent, getGoogleCalendarLink, createGoogleCalendar, refreshGoogleAccessToken, getGoogleColorIdFromHex, getEventColorHexFromId, updateCalendarColor, getCalendarClient, GOOGLE_CALENDAR_COLORS } = require('../utilities/calendar');
+const { google } = require('googleapis');
 const router = express.Router();
 
 // Valid building codes
@@ -64,7 +64,7 @@ function validateLocation(location) {
         formatted: `${buildingCode} ${room}`,
         building: VALID_BUILDING_CODES[buildingCode]
     };
-}
+};
 
 // Get all events for current user
 router.get('/', verifyToken, async (req, res) => {
@@ -273,20 +273,24 @@ router.post('/', verifyToken, async (req, res) => {
                             // Create new calendar for this semester
                             const newCalendar = await createGoogleCalendar(
                                 accessToken,
-                                `${semester_name} Semester Classes`,
-                                `Classes for ${semester_name} semester`
+                                `${semester_name} Semester`,
+                                `Events for ${semester_name} semester`
                             );
                             googleCalendarId = newCalendar.id;
                             
-                            // Store the calendar mapping in database with default color
+                            // Store the calendar mapping in database with default color (colorId '16' = #4986e7)
                             const insertCalendarQuery = `
                                 INSERT INTO semester_calendars (account_id, semester_name, google_calendar_id, color_hex, created_at)
                                 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
                                 ON CONFLICT (account_id, semester_name) DO UPDATE 
                                 SET google_calendar_id = $3, color_hex = $4
                             `;
-                            await pool.query(insertCalendarQuery, [req.user.account_id, semester_name, googleCalendarId, '#039be5']);
+                            await pool.query(insertCalendarQuery, [req.user.account_id, semester_name, googleCalendarId, '#4986e7']);
                             console.log(`✓ Created and stored new semester calendar: ${googleCalendarId}`);
+                            
+                            // Include flag that new calendar was created
+                            res.locals.newCalendarCreated = true;
+                            res.locals.newCalendarSemester = semester_name;
                         }
                     } catch (calendarErr) {
                         console.error('Warning: Could not manage semester calendar:', calendarErr.message);
@@ -386,7 +390,9 @@ router.post('/', verifyToken, async (req, res) => {
             google_event_id: googleEventId,
             google_calendar_link: googleLink,
             google_sync: googleEventId ? { status: 'synced' } : { status: 'pending', error: googleError || 'No Google Calendar access token' },
-            message: googleEventId ? 'Event created and synced to Google Calendar' : 'Event created locally (not synced to Google Calendar)'
+            message: googleEventId ? 'Event created and synced to Google Calendar' : 'Event created locally (not synced to Google Calendar)',
+            newCalendarCreated: res.locals.newCalendarCreated || false,
+            newCalendarSemester: res.locals.newCalendarSemester || null
         });
     } catch (err) {
         console.error('Error creating event:', err.message);
@@ -841,6 +847,92 @@ router.put('/calendars/:calendarId/color', verifyToken, async (req, res) => {
     } catch (err) {
         console.error('❌ Error updating calendar color:', err);
         res.status(500).json({ error: 'Failed to update calendar color', details: err.message });
+    }
+});
+
+// Delete a calendar
+router.delete('/calendars/:calendarId', verifyToken, async (req, res) => {
+    try {
+        const { calendarId } = req.params;
+
+        console.log(`\n🗑️ [DELETE /calendars/:calendarId] Delete calendar request`);
+        console.log(`   Account: ${req.user.account_id}`);
+        console.log(`   Calendar ID: ${calendarId}`);
+
+        // Get user's Google access token
+        const tokenQuery = 'SELECT google_access_token FROM account WHERE account_id = $1';
+        const tokenResult = await pool.query(tokenQuery, [req.user.account_id]);
+
+        if (!tokenResult.rows.length || !tokenResult.rows[0].google_access_token) {
+            console.warn('   ⚠ No Google access token found');
+            return res.status(401).json({ error: 'Google Calendar not connected' });
+        }
+
+        let accessToken = tokenResult.rows[0].google_access_token;
+
+        // Try to refresh token
+        try {
+            accessToken = await refreshGoogleAccessToken(req.user.account_id);
+            console.log('   ✓ Google access token refreshed');
+        } catch (refreshErr) {
+            console.warn('   ⚠ Could not refresh token, using existing:', refreshErr.message);
+        }
+
+        // Delete calendar from Google Calendar
+        try {
+            const auth = await getCalendarClient(accessToken);
+            const calendar = google.calendar({ version: 'v3', auth });
+            
+            await calendar.calendars.delete({
+                calendarId: calendarId
+            });
+            console.log('   ✓ Calendar deleted from Google Calendar');
+        } catch (googleErr) {
+            console.warn('   ⚠ Could not delete from Google Calendar:', googleErr.message);
+            // Continue - delete from database anyway
+        }
+
+        // Delete calendar and associated events from database
+        try {
+            // Get the semester name first
+            const getCalendarQuery = `
+                SELECT semester_name FROM semester_calendars 
+                WHERE google_calendar_id = $1 AND account_id = $2
+            `;
+            const calendarResult = await pool.query(getCalendarQuery, [calendarId, req.user.account_id]);
+
+            if (calendarResult.rows.length > 0) {
+                const semesterName = calendarResult.rows[0].semester_name;
+
+                // Delete all events for this semester
+                const deleteEventsQuery = `
+                    DELETE FROM events 
+                    WHERE semester_name = $1 AND account_id = $2
+                `;
+                const eventsResult = await pool.query(deleteEventsQuery, [semesterName, req.user.account_id]);
+                console.log(`   ✓ Deleted ${eventsResult.rowCount} events for ${semesterName}`);
+
+                // Delete the calendar
+                const deleteCalendarQuery = `
+                    DELETE FROM semester_calendars 
+                    WHERE google_calendar_id = $1 AND account_id = $2
+                `;
+                const dbResult = await pool.query(deleteCalendarQuery, [calendarId, req.user.account_id]);
+                console.log(`   ✓ Calendar deleted from database: ${dbResult.rowCount} row(s) removed`);
+            }
+        } catch (dbErr) {
+            console.error('   ❌ Error deleting from database:', dbErr.message);
+            return res.status(500).json({ error: 'Failed to delete calendar from database', details: dbErr.message });
+        }
+
+        console.log(`   ✅ Calendar delete complete`);
+        res.json({
+            success: true,
+            message: 'Calendar and associated events deleted successfully'
+        });
+    } catch (err) {
+        console.error('❌ Error deleting calendar:', err);
+        res.status(500).json({ error: 'Failed to delete calendar', details: err.message });
     }
 });
 

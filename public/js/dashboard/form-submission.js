@@ -140,6 +140,13 @@ function setupFormSubmission() {
             generateClassForms(1);
             // Re-select the current semester and refresh calendars
             autoSelectSemester();
+            
+            // If a new calendar was created, refresh calendars to get the correct color
+            if (result.newCalendarCreated) {
+                console.log(`✓ New calendar created for ${result.newCalendarSemester}, refreshing...`);
+                await CalendarSelection.loadExistingCalendars();
+            }
+            
             CalendarSelection.refreshCalendarsForSemester(semesterName);
             await loadEvents();
             
@@ -555,12 +562,73 @@ async function submitEditForm(e) {
 function deleteEvent(eventId) {
     if (confirm('Are you sure you want to delete this event?')) {
         deleteEventAPI(eventId)
-            .then(response => {
+            .then(async (response) => {
                 alert('Event deleted successfully');
+                
+                // Load events and check if calendar is now empty
+                const eventsResponse = await fetch(`${API_BASE_URL}/events`, {
+                    credentials: 'include'
+                });
+                
+                if (eventsResponse.ok) {
+                    const allEvents = await eventsResponse.json();
+                    
+                    // Get the semester of the deleted event from response if available
+                    // Or reload and find calendars that have no events
+                    const calendarsResponse = await fetch(`${API_BASE_URL}/events/calendars/semesters`, {
+                        credentials: 'include'
+                    });
+                    
+                    if (calendarsResponse.ok) {
+                        const calendars = await calendarsResponse.json();
+                        
+                        // Check each calendar to see if it has any events
+                        for (const calendar of calendars) {
+                            const calendarHasEvents = allEvents.some(event => event.semester_name === calendar.semester_name);
+                            
+                            if (!calendarHasEvents) {
+                                // This calendar is now empty, offer to delete it
+                                if (confirm(`The "${calendar.semester_name}" calendar has no more events. Would you like to delete this calendar?`)) {
+                                    try {
+                                        await deleteCalendar(calendar.google_calendar_id, calendar.semester_name);
+                                    } catch (err) {
+                                        console.error('Error deleting calendar:', err);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
                 loadEvents();
             })
             .catch(err => {
                 alert('Failed to delete event: ' + err.message);
             });
+    }
+}
+
+// Helper function to delete calendar (reusing from calendar-selection.js logic)
+async function deleteCalendar(calendarId, calendarName) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/events/calendars/${calendarId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to delete calendar');
+        }
+
+        console.log(`✓ Calendar "${calendarName}" deleted successfully`);
+        
+        // Refresh the calendar selection if CalendarSelection module is available
+        if (typeof CalendarSelection !== 'undefined') {
+            await CalendarSelection.loadExistingCalendars();
+        }
+    } catch (err) {
+        console.error('Error deleting calendar:', err);
+        throw err;
     }
 }
