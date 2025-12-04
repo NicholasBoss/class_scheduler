@@ -52,7 +52,7 @@ function validateLocation(location) {
         };
     }
 
-    if (!room || !/^\d+/.test(room)) {
+    if (!room || !/^[\d\w]/.test(room)) {
         return { 
             valid: false, 
             error: `Invalid room number. Format should be: "${buildingCode} ROOM_NUMBER"` 

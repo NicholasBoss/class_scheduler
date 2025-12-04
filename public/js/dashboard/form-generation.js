@@ -42,7 +42,7 @@ function generateClassForms(numClasses) {
                             </div>
                             <div>
                                 <label for="roomNumber${i}">Room Number</label>
-                                <input type="text" id="roomNumber${i}" name="roomNumber${i}" placeholder="e.g., 101">
+                                <input type="text" id="roomNumber${i}" name="roomNumber${i}" placeholder="e.g., 101 or CT5">
                             </div>
                         </div>
                         <button type="button" class="toggle-location-btn" data-class-index="${i}">Or Enter Manually</button>

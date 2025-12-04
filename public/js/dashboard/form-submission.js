@@ -52,8 +52,16 @@ function setupFormSubmission() {
     document.getElementById('scheduleForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         
+        // Get and disable the submit button
+        const submitButton = document.querySelector('#scheduleForm button[type="submit"]');
+        submitButton.disabled = true;
+        const originalText = submitButton.textContent;
+        submitButton.textContent = 'Generating...';
+        
         // Validate time selections before proceeding
         if (!validateTimeSelection()) {
+            submitButton.disabled = false;
+            submitButton.textContent = originalText;
             return;
         }
         
@@ -66,6 +74,8 @@ function setupFormSubmission() {
         const calendarOption = CalendarSelection.getSelectedCalendarOption();
         if (!calendarOption) {
             alert('Please select a calendar option');
+            submitButton.disabled = false;
+            submitButton.textContent = originalText;
             return;
         }
         
@@ -76,8 +86,13 @@ function setupFormSubmission() {
             const className = document.getElementById(`className${i}`).value;
             
             const buildingCode = document.getElementById(`buildingCode${i}`)?.value;
-            const roomNumber = document.getElementById(`roomNumber${i}`)?.value;
+            let roomNumber = document.getElementById(`roomNumber${i}`)?.value;
             const manualLocation = document.getElementById(`location${i}`)?.value;
+            
+            // Pad single digit room numbers with a leading zero
+            if (roomNumber && /^\d$/.test(roomNumber)) {
+                roomNumber = '0' + roomNumber;
+            }
             
             let location = '';
             if (buildingCode && roomNumber) {
@@ -106,11 +121,15 @@ function setupFormSubmission() {
                 const locationValidation = validateLocation(location);
                 if (!locationValidation.valid) {
                     alert(`Class ${i + 1}: ${locationValidation.error}`);
+                    submitButton.disabled = false;
+                    submitButton.textContent = originalText;
                     return;
                 }
                 location = locationValidation.formatted;
             } else {
                 alert(`Class ${i + 1}: Please enter a location`);
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
                 return;
             }
 
@@ -141,6 +160,10 @@ function setupFormSubmission() {
             // Re-select the current semester and refresh calendars
             autoSelectSemester();
             
+            // Reset the submit button
+            submitButton.disabled = false;
+            submitButton.textContent = originalText;
+            
             // If a new calendar was created, refresh calendars to get the correct color
             if (result.newCalendarCreated) {
                 console.log(`✓ New calendar created for ${result.newCalendarSemester}, refreshing...`);
@@ -154,6 +177,10 @@ function setupFormSubmission() {
             checkSyncStatusAfterDelay(7000);
         } catch (err) {
             console.error('Error creating schedule:', err);
+            
+            // Re-enable the button on error
+            submitButton.disabled = false;
+            submitButton.textContent = originalText;
             
             // Check if this is a Google Calendar auth error
             if (err.authError) {

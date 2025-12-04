@@ -23,10 +23,10 @@ function validateLocation(location) {
         };
     }
 
-    if (!room || !/^\d+/.test(room)) {
+    if (!room || !/^[\d\w]/.test(room)) {
         return { 
             valid: false, 
-            error: `Invalid room number. Format should be: "${buildingCode} ROOM_NUMBER"\n\nExample: "KIM 101"` 
+            error: `Invalid room number. Format should be: "${buildingCode} ROOM_NUMBER"\n\nExample: "KIM 101" or "BCTR CT5"` 
         };
     }
 
