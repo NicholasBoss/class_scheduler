@@ -100,7 +100,7 @@ async function refreshGoogleAccessToken(accountId) {
         const { google_access_token, google_refresh_token } = result.rows[0];
         
         if (!google_refresh_token) {
-            console.warn('⚠ No refresh token available, cannot refresh access token');
+            // console.warn('⚠ No refresh token available, cannot refresh access token');
             return google_access_token;
         }
         
@@ -122,10 +122,10 @@ async function refreshGoogleAccessToken(accountId) {
             [newAccessToken, accountId]
         );
         
-        console.log('✓ Google access token refreshed');
+        // console.log('✓ Google access token refreshed');
         return newAccessToken;
     } catch (err) {
-        console.error('Error refreshing access token:', err.message);
+        // console.error('Error refreshing access token:', err.message);
         throw err;
     }
 }
@@ -133,27 +133,38 @@ async function refreshGoogleAccessToken(accountId) {
 // Create recurring event in Google Calendar
 async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 'primary') {
     try {
-        console.log(`Creating event on calendar: ${calendarId}`);
+        // console.log(`Creating event on calendar: ${calendarId}`);
         const auth = await getCalendarClient(userAccessToken);
         const calendar = google.calendar({ version: 'v3', auth });
 
         // Parse start and end times
-        const { class_name, location, time_slot, days, start_date, end_date } = eventDetails;
+        const { class_name, location, time_slot, days, start_date, end_date, reminders } = eventDetails;
         const [startTime, endTime] = time_slot.split(' - ');
 
         // Parse times correctly for America/Denver timezone
         const startDateTime = createDateInTimezone(start_date, startTime, 'America/Denver');
         const endDateTime = createDateInTimezone(start_date, endTime, 'America/Denver');
 
+        // Format datetime without milliseconds for Google Calendar API
+        const formatDateTimeForGoogle = (date) => {
+            const year = date.getUTCFullYear();
+            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(date.getUTCDate()).padStart(2, '0');
+            const hours = String(date.getUTCHours()).padStart(2, '0');
+            const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+            const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+        };
+
         const event = {
             summary: class_name,
             location: location || '',
             start: {
-                dateTime: startDateTime.toISOString(),
+                dateTime: formatDateTimeForGoogle(startDateTime),
                 timeZone: 'America/Denver'
             },
             end: {
-                dateTime: endDateTime.toISOString(),
+                dateTime: formatDateTimeForGoogle(endDateTime),
                 timeZone: 'America/Denver'
             }
         };
@@ -204,19 +215,19 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
             const firstOccurrenceDay = String(firstOccurrenceDate.getDate()).padStart(2, '0');
             const firstOccurrenceDateString = `${firstOccurrenceYear}-${firstOccurrenceMonth}-${firstOccurrenceDay}`;
             
-            console.log(`📅 Recurring event - Start date: ${start_date}, First occurrence: ${firstOccurrenceDateString}, Days: ${days}`);
+            // console.log(`📅 Recurring event - Start date: ${start_date}, First occurrence: ${firstOccurrenceDateString}, Days: ${days}`);
             
             // Update the event to use the first occurrence date
             const firstOccurrenceStartDateTime = createDateInTimezone(firstOccurrenceDateString, startTime, 'America/Denver');
             const firstOccurrenceEndDateTime = createDateInTimezone(firstOccurrenceDateString, endTime, 'America/Denver');
             
             event.start = {
-                dateTime: firstOccurrenceStartDateTime.toISOString(),
+                dateTime: formatDateTimeForGoogle(firstOccurrenceStartDateTime),
                 timeZone: 'America/Denver'
             };
             
             event.end = {
-                dateTime: firstOccurrenceEndDateTime.toISOString(),
+                dateTime: formatDateTimeForGoogle(firstOccurrenceEndDateTime),
                 timeZone: 'America/Denver'
             };
             
@@ -232,19 +243,44 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
             const untilString = `${untilYear}${untilMonth}${untilDay}`;
             
             const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${recurringDays.join(',')};UNTIL=${untilString}`;
-            console.log(`📅 Recurring RRULE: ${rrule}`);
+            // console.log(`📅 Recurring RRULE: ${rrule}`);
             event.recurrence = [rrule];
         }
 
-        console.log('Event details being sent to Google Calendar:', JSON.stringify(event, null, 2));
+        // Always add default 15-minute reminder, plus any custom reminders selected
+        const reminderOverrides = [
+            {
+                method: 'popup',
+                minutes: 15
+            }
+        ];
+        
+        if (reminders && reminders.length > 0) {
+            reminders.forEach(minutesBefore => {
+                reminderOverrides.push({
+                    method: 'popup',
+                    minutes: parseInt(minutesBefore)
+                });
+            });
+            // console.log(`🔔 Reminders added (15-min default + custom):`, reminderOverrides);
+        } else {
+            console.log(`🔔 Default 15-minute reminder added`);
+        }
+        
+        event.reminders = {
+            useDefault: false,
+            overrides: reminderOverrides
+        };
+
+        // console.log('Event details being sent to Google Calendar:', JSON.stringify(event, null, 2));
 
         const response = await calendar.events.insert({
             calendarId: calendarId,
             requestBody: event
         });
 
-        console.log('✓ Event created in Google Calendar:', response.data.id);
-        console.log('Event link:', response.data.htmlLink);
+        // console.log('✓ Event created in Google Calendar:', response.data.id);
+        // console.log('Event link:', response.data.htmlLink);
         return response.data;
     } catch (err) {
         console.error('Error creating Google Calendar event:', err.message);
@@ -255,6 +291,13 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
             statusText: err.response?.statusText,
             data: err.response?.data
         });
+        
+        // Check if it's an authentication error
+        if (err.response?.status === 401 || err.message?.includes('authentication')) {
+            const authError = new Error('Google Calendar authentication failed. Invalid or expired credentials.');
+            authError.statusCode = 401;
+            throw authError;
+        }
         throw err;
     }
 }
@@ -265,21 +308,32 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
         const auth = await getCalendarClient(userAccessToken);
         const calendar = google.calendar({ version: 'v3', auth });
         
-        const { class_name, location, time_slot, days, end_date, start_date } = eventDetails;
+        const { class_name, location, time_slot, days, end_date, start_date, reminders } = eventDetails;
 
         const [startTime, endTime] = time_slot.split(' - ');
         const startDateTime = createDateInTimezone(start_date, startTime, 'America/Denver');
         const endDateTime = createDateInTimezone(start_date, endTime, 'America/Denver');
 
+        // Format datetime without milliseconds for Google Calendar API
+        const formatDateTimeForGoogle = (date) => {
+            const year = date.getUTCFullYear();
+            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(date.getUTCDate()).padStart(2, '0');
+            const hours = String(date.getUTCHours()).padStart(2, '0');
+            const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+            const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+        };
+
         const event = {
             summary: class_name,
             location: location || '',
             start: {
-                dateTime: startDateTime.toISOString(),
+                dateTime: formatDateTimeForGoogle(startDateTime),
                 timeZone: 'America/Denver'
             },
             end: {
-                dateTime: endDateTime.toISOString(),
+                dateTime: formatDateTimeForGoogle(endDateTime),
                 timeZone: 'America/Denver'
             }
         };
@@ -316,16 +370,47 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
             event.recurrence = [rrule];
         }
 
+        // Always add default 15-minute reminder, plus any custom reminders selected
+        const reminderOverrides = [
+            {
+                method: 'popup',
+                minutes: 15
+            }
+        ];
+        
+        if (reminders && reminders.length > 0) {
+            reminders.forEach(minutesBefore => {
+                reminderOverrides.push({
+                    method: 'popup',
+                    minutes: parseInt(minutesBefore)
+                });
+            });
+            console.log(`🔔 Reminders updated (15-min default + custom):`, reminderOverrides);
+        } else {
+            console.log(`🔔 Default 15-minute reminder (no custom reminders)`);
+        }
+        
+        event.reminders = {
+            useDefault: false,
+            overrides: reminderOverrides
+        };
+
         const response = await calendar.events.update({
             calendarId: calendarId,
             eventId: googleEventId,
             requestBody: event
         });
 
-        console.log('✓ Event updated in Google Calendar:', response.data.id);
+        // console.log('✓ Event updated in Google Calendar:', response.data.id);
         return response.data;
     } catch (err) {
         console.error('Error updating Google Calendar event:', err.message);
+        // Check if it's an authentication error
+        if (err.response?.status === 401 || err.message?.includes('authentication')) {
+            const authError = new Error('Google Calendar authentication failed. Invalid or expired credentials.');
+            authError.statusCode = 401;
+            throw authError;
+        }
         throw err;
     }
 }
@@ -341,13 +426,13 @@ async function deleteGoogleEvent(userAccessToken, googleEventId, calendarId = 'p
             eventId: googleEventId
         });
 
-        console.log('✓ Event deleted from Google Calendar:', googleEventId);
+        // console.log('✓ Event deleted from Google Calendar:', googleEventId);
         return true;
     } catch (err) {
         // If event not found on Google Calendar, that's okay - it was already deleted
         const status = err.response?.status || err.status;
         if (status === 404 || (err.message && err.message.includes('404'))) {
-            console.log('⚠ Event not found on Google Calendar (already deleted or never synced):', googleEventId);
+            // console.log('⚠ Event not found on Google Calendar (already deleted or never synced):', googleEventId);
             return true; // Treat as success since the event is gone
         }
         console.error('Error deleting Google Calendar event:', err.message);
@@ -372,7 +457,7 @@ async function createGoogleCalendar(userAccessToken, calendarName, calendarDescr
             requestBody: calendarResource
         });
 
-        console.log('✓ Calendar created in Google Calendar:', response.data.id);
+        // console.log('✓ Calendar created in Google Calendar:', response.data.id);
         
         // Set the calendar color after creation
         try {
@@ -382,7 +467,7 @@ async function createGoogleCalendar(userAccessToken, calendarName, calendarDescr
                     colorId: String(colorId)
                 }
             });
-            console.log(`✓ Calendar color set to colorId ${colorId}`);
+            // console.log(`✓ Calendar color set to colorId ${colorId}`);
         } catch (colorErr) {
             console.warn('⚠ Could not set calendar color:', colorErr.message);
             // Continue - calendar was created even if color setting failed
@@ -493,7 +578,7 @@ async function updateCalendarColor(userAccessToken, calendarId, colorId) {
             }
         });
         
-        console.log(`✓ Calendar color updated to colorId ${colorId}`);
+        // console.log(`✓ Calendar color updated to colorId ${colorId}`);
         return response.data;
     } catch (err) {
         console.error('Error updating calendar color:', err.message);

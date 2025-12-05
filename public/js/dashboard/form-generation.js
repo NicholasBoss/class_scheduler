@@ -83,6 +83,16 @@ function generateClassForms(numClasses) {
                     </div>
                 </div>
             </div>
+            <div class="info-message">
+                <strong>Note:</strong> By default, reminders have a 15 minute lead time. You can add additional reminders below. For more options, please use Google Calendar directly.
+            </div>
+            <div class="form-group">
+                <label>Reminders</label>
+                <div class="reminder-options">
+                    <label><input type="checkbox" id="reminder30min${i}" name="reminder30min${i}" value="30"> 30 min</label>
+                    <label><input type="checkbox" id="reminder1hr${i}" name="reminder1hr${i}" value="60"> 1 hr</label>
+                </div>
+            </div>
         `;
         container.appendChild(classForm);
 
@@ -163,6 +173,22 @@ function generateClassForms(numClasses) {
         timeSlotSelect.addEventListener('change', () => {
             FormDataPersistence.save();
         });
+
+        // Attach listeners to reminder checkboxes
+        const reminder30min = document.getElementById(`reminder30min${i}`);
+        const reminder1hr = document.getElementById(`reminder1hr${i}`);
+        
+        if (reminder30min) {
+            reminder30min.addEventListener('change', () => {
+                FormDataPersistence.save();
+            });
+        }
+        
+        if (reminder1hr) {
+            reminder1hr.addEventListener('change', () => {
+                FormDataPersistence.save();
+            });
+        }
     }
 
     // Restore previously saved form data after generating new forms

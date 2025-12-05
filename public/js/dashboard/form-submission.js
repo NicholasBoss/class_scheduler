@@ -117,6 +117,23 @@ function setupFormSubmission() {
             const dayCheckboxes = document.querySelectorAll(`input[name="days${i}"]:checked`);
             const days = Array.from(dayCheckboxes).map(cb => cb.value).join(',');
 
+            // Get selected reminders
+            const reminders = [];
+            const reminder30Element = document.getElementById(`reminder30min${i}`);
+            const reminder60Element = document.getElementById(`reminder1hr${i}`);
+            
+            console.log(`Class ${i}: reminder30min element:`, reminder30Element, `checked:`, reminder30Element?.checked);
+            console.log(`Class ${i}: reminder1hr element:`, reminder60Element, `checked:`, reminder60Element?.checked);
+            
+            if (reminder30Element?.checked) {
+                reminders.push(30);
+            }
+            if (reminder60Element?.checked) {
+                reminders.push(60);
+            }
+            
+            console.log(`Class ${i}: Reminders array:`, reminders);
+
             if (location) {
                 const locationValidation = validateLocation(location);
                 if (!locationValidation.valid) {
@@ -143,7 +160,8 @@ function setupFormSubmission() {
                     end_date: endDate,
                     create_separate_calendar: createSeparateCalendar,
                     calendar_type: calendarOption.type,
-                    semester_name: semesterName
+                    semester_name: semesterName,
+                    reminders: reminders
                 });
             }
         }
@@ -363,6 +381,7 @@ function openEditModal(event) {
     
     // Populate form with current values
     form.dataset.eventId = event.event_id;
+    form.dataset.googleEventId = event.google_event_id || null;
     document.getElementById('editClassName').value = event.class_name || '';
     document.getElementById('editLocation').value = event.location || '';
     
@@ -423,6 +442,22 @@ function openEditModal(event) {
         const isChecked = days.includes(checkbox.value);
         checkbox.checked = isChecked;
     });
+
+    // Restore reminders from stored data
+    const editReminder30 = document.getElementById('editReminder30min');
+    const editReminder60 = document.getElementById('editReminder1hr');
+    
+    if (editReminder30 && editReminder60) {
+        // Check if reminders array exists and contains the reminder values
+        if (event.reminders && Array.isArray(event.reminders)) {
+            editReminder30.checked = event.reminders.includes(30);
+            editReminder60.checked = event.reminders.includes(60);
+        } else {
+            // Default: only 15-min (which is always applied)
+            editReminder30.checked = false;
+            editReminder60.checked = false;
+        }
+    }
     
     modal.style.display = 'block';
 }
@@ -549,6 +584,18 @@ async function submitEditForm(e) {
         return;
     }
 
+    // Get selected reminders
+    const reminders = [];
+    const editReminder30Element = document.getElementById('editReminder30min');
+    const editReminder60Element = document.getElementById('editReminder1hr');
+    
+    if (editReminder30Element?.checked) {
+        reminders.push(30);
+    }
+    if (editReminder60Element?.checked) {
+        reminders.push(60);
+    }
+
     try {
         // Get token from localStorage
         const token = localStorage.getItem('token');
@@ -559,7 +606,8 @@ async function submitEditForm(e) {
             time_slot: timeSlot,
             days,
             start_date: startDate,
-            end_date: endDate
+            end_date: endDate,
+            reminders
         };
         
         const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
@@ -573,15 +621,69 @@ async function submitEditForm(e) {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(`HTTP ${response.status}: ${errorData.error || response.statusText}`);
         }
 
-        alert('✓ Class updated successfully!');
+        const responseData = await response.json();
+        
+        // If event was not synced before, attempt to sync it now
+        if (form.dataset.googleEventId === 'null' || !form.dataset.googleEventId) {
+            console.log('🔄 Event was not previously synced, attempting to sync...');
+            try {
+                const syncResponse = await fetch(`${API_BASE_URL}/events/${eventId}/sync`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                if (syncResponse.ok) {
+                    const syncData = await syncResponse.json();
+                    console.log('✓ Event synced to Google Calendar:', syncData.google_event_id);
+                    alert('✓ Class updated and synced to Google Calendar!');
+                } else if (syncResponse.status === 401) {
+                    const syncData = await syncResponse.json();
+                    console.warn('⚠ Google Calendar auth error during sync');
+                    showGoogleNotification(
+                        `<strong>⚠ Google Calendar Authentication Failed</strong><br><br>` +
+                        `Your class was updated successfully, but we could not sync it to Google Calendar because your authentication has expired or is invalid.<br><br>` +
+                        `<strong>What to do:</strong> Please log out and log back in to re-authorize Google Calendar access. Your class will sync the next time you update it.`
+                    );
+                } else {
+                    console.warn('⚠ Could not sync event to Google Calendar');
+                    alert('✓ Class updated successfully! (Could not sync to Google Calendar)');
+                }
+            } catch (syncErr) {
+                console.warn('⚠ Sync attempt failed:', syncErr);
+                alert('✓ Class updated successfully! (Sync failed, but local update succeeded)');
+            }
+        } else {
+            alert('✓ Class updated successfully!');
+        }
+        
         closeEditModal();
         await loadEvents();
     } catch (err) {
         console.error('Error updating event:', err);
-        alert('Failed to update class');
+        
+        // Check if this is a Google Calendar auth error
+        if (err.message && err.message.includes('401')) {
+            showGoogleNotification(
+                `<strong>⚠ Google Calendar Authentication Failed</strong><br><br>` +
+                `We could not update your class because your Google Calendar authentication has expired or is invalid.<br><br>` +
+                `<strong>What to do:</strong> Please log out and log back in to re-authorize Google Calendar access, then try updating your class again.`
+            );
+        } else if (err.message && (err.message.includes('authentication') || err.message.includes('credentials'))) {
+            showGoogleNotification(
+                `<strong>⚠ Google Calendar Authentication Issue</strong><br><br>` +
+                `Your class was not updated because we couldn't authenticate with Google Calendar.<br><br>` +
+                `<strong>What to do:</strong> Please log out and log back in to re-authorize Google Calendar access.`
+            );
+        } else {
+            alert('Failed to update class: ' + err.message);
+        }
     }
 }
 

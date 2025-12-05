@@ -71,7 +71,9 @@ const FormDataPersistence = (() => {
                 isSimpleMode,
                 isPresetTimeMode,
                 customStartTime,
-                customEndTime
+                customEndTime,
+                reminder30min: document.getElementById(`reminder30min${index}`)?.checked || false,
+                reminder1hr: document.getElementById(`reminder1hr${index}`)?.checked || false
             };
         } catch (e) {
             console.warn(`Error collecting class ${index} data:`, e);
@@ -219,6 +221,16 @@ const FormDataPersistence = (() => {
                     if (startInput) startInput.value = classData.customStartTime;
                     if (endInput) endInput.value = classData.customEndTime;
                 }, 50);
+            }
+
+            // Restore reminders
+            if (classData.reminder30min) {
+                const reminder30 = document.getElementById(`reminder30min${index}`);
+                if (reminder30) reminder30.checked = true;
+            }
+            if (classData.reminder1hr) {
+                const reminder60 = document.getElementById(`reminder1hr${index}`);
+                if (reminder60) reminder60.checked = true;
             }
         } catch (e) {
             console.warn(`Error restoring class ${index} data:`, e);

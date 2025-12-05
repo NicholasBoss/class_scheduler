@@ -150,7 +150,9 @@ router.get('/:id', verifyToken, async (req, res) => {
 // Create new event
 router.post('/', verifyToken, async (req, res) => {
     try {
-        const { class_name, location, time_slot, days, start_date, end_date, create_separate_calendar, calendar_type, semester_name } = req.body;
+        const { class_name, location, time_slot, days, start_date, end_date, create_separate_calendar, calendar_type, semester_name, reminders } = req.body;
+
+        console.log('📝 Creating event with reminders:', reminders);
 
         // Validate location
         const locationValidation = validateLocation(location);
@@ -186,12 +188,23 @@ router.post('/', verifyToken, async (req, res) => {
         // FIRST: Create event in database (with null google_event_id initially)
         // This ensures we only create in Google Calendar if database insertion succeeds
         const insertQuery = `
-            INSERT INTO events (account_id, class_name, location, time_slot, days, start_date, end_date, created_at, recurrence_rule, google_event_id, semester_name)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, NULL, $9)
+            INSERT INTO events (account_id, class_name, location, time_slot, days, start_date, end_date, created_at, recurrence_rule, google_event_id, semester_name, reminders)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, NULL, $9, $10)
             RETURNING *
         `;
         let result;
         try {
+            // Prepare reminders array: always include 15-min default, plus custom ones
+            const remindersArray = [15];
+            if (reminders && Array.isArray(reminders)) {
+                reminders.forEach(reminder => {
+                    const reminderValue = parseInt(reminder);
+                    if (!remindersArray.includes(reminderValue)) {
+                        remindersArray.push(reminderValue);
+                    }
+                });
+            }
+            
             result = await pool.query(insertQuery, [
                 req.user.account_id,
                 class_name,
@@ -201,9 +214,10 @@ router.post('/', verifyToken, async (req, res) => {
                 start_date,
                 end_date,
                 rrule,
-                semester_name || null
+                semester_name || null,
+                remindersArray
             ]);
-            console.log('✓ Event created in database:', result.rows[0].event_id);
+            console.log('✓ Event created in database:', result.rows[0].event_id, 'with reminders:', remindersArray);
         } catch (dbErr) {
             console.error('ERROR: Failed to insert event into database:', dbErr.message);
             console.error('Query:', insertQuery);
@@ -323,7 +337,7 @@ router.post('/', verifyToken, async (req, res) => {
                 
                 const googleEvent = await createRecurringEvent(
                     accessToken,
-                    { class_name, location: locationValidation.formatted, time_slot, days, start_date, end_date },
+                    { class_name, location: locationValidation.formatted, time_slot, days, start_date, end_date, reminders },
                     googleCalendarId
                 );
                 googleEventId = googleEvent.id;
@@ -404,7 +418,9 @@ router.post('/', verifyToken, async (req, res) => {
 // Update event
 router.put('/:id', verifyToken, async (req, res) => {
     try {
-        const { class_name, location, time_slot, days, start_date, end_date } = req.body;
+        const { class_name, location, time_slot, days, start_date, end_date, reminders } = req.body;
+
+        console.log('📝 Updating event with reminders:', reminders);
 
         // Validate location
         const locationValidation = validateLocation(location);
@@ -440,6 +456,11 @@ router.put('/:id', verifyToken, async (req, res) => {
                         console.log('✓ Access token refreshed for update operation');
                     } catch (refreshErr) {
                         console.warn('⚠ Could not refresh token, using existing token:', refreshErr.message);
+                        // Don't use the old token if refresh failed - it's likely invalid
+                        // Return auth error to frontend
+                        return res.status(401).json({ 
+                            error: 'Google Calendar authentication failed. Please re-authenticate.' 
+                        });
                     }
                     
                     // Determine which calendar to use - if event has semester_name, use that calendar
@@ -455,13 +476,25 @@ router.put('/:id', verifyToken, async (req, res) => {
                         }
                     }
                     
-                    await updateRecurringEvent(
-                        accessToken,
-                        existingEvent.google_event_id,
-                        { class_name, location: locationValidation.formatted, time_slot, days, start_date, end_date },
-                        calendarId
-                    );
-                    console.log(`✓ Event updated in Google Calendar (${calendarId})`);
+                    try {
+                        await updateRecurringEvent(
+                            accessToken,
+                            existingEvent.google_event_id,
+                            { class_name, location: locationValidation.formatted, time_slot, days, start_date, end_date, reminders },
+                            calendarId
+                        );
+                        console.log(`✓ Event updated in Google Calendar (${calendarId})`);
+                    } catch (updateErr) {
+                        console.error('Error updating event in Google Calendar:', updateErr.message);
+                        // Check if it's an auth error
+                        if (updateErr.statusCode === 401 || updateErr.message?.includes('authentication')) {
+                            return res.status(401).json({ 
+                                error: 'Google Calendar authentication failed. Please re-authenticate.' 
+                            });
+                        }
+                        // For other errors, log but don't fail - event still updated locally
+                        console.error('Warning: Could not update in Google Calendar:', updateErr.message);
+                    }
                 }
             } catch (err) {
                 console.error('Warning: Could not update in Google Calendar:', err.message);
@@ -472,10 +505,22 @@ router.put('/:id', verifyToken, async (req, res) => {
         const query = `
             UPDATE events 
             SET class_name = $1, location = $2, time_slot = $3, days = $4, 
-                start_date = $5, end_date = $6
-            WHERE event_id = $7 AND account_id = $8
+                start_date = $5, end_date = $6, reminders = $7
+            WHERE event_id = $8 AND account_id = $9
             RETURNING *
         `;
+        
+        // Prepare reminders array: always include 15-min default, plus custom ones
+        const remindersArray = [15];
+        if (reminders && Array.isArray(reminders)) {
+            reminders.forEach(reminder => {
+                const reminderValue = parseInt(reminder);
+                if (!remindersArray.includes(reminderValue)) {
+                    remindersArray.push(reminderValue);
+                }
+            });
+        }
+        
         const result = await pool.query(query, [
             class_name,
             locationValidation.formatted,
@@ -483,6 +528,7 @@ router.put('/:id', verifyToken, async (req, res) => {
             days,
             start_date,
             end_date,
+            remindersArray,
             req.params.id,
             req.user.account_id
         ]);
@@ -494,6 +540,79 @@ router.put('/:id', verifyToken, async (req, res) => {
     } catch (err) {
         console.error('Error updating event:', err);
         res.status(500).json({ error: 'Failed to update event' });
+    }
+});
+
+// Sync event to Google Calendar (if not already synced)
+router.post('/:id/sync', verifyToken, async (req, res) => {
+    try {
+        const eventId = req.params.id;
+        
+        // Get the event from database
+        const getQuery = `
+            SELECT e.*, sc.google_calendar_id 
+            FROM events e
+            LEFT JOIN semester_calendars sc ON e.semester_name = sc.semester_name AND e.account_id = sc.account_id
+            WHERE e.event_id = $1 AND e.account_id = $2
+        `;
+        const result = await pool.query(getQuery, [eventId, req.user.account_id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+        
+        const event = result.rows[0];
+        
+        // If already synced, return error
+        if (event.google_event_id) {
+            return res.status(400).json({ error: 'Event is already synced' });
+        }
+        
+        // Get user's Google access token
+        const tokenQuery = 'SELECT google_access_token FROM account WHERE account_id = $1';
+        const tokenResult = await pool.query(tokenQuery, [req.user.account_id]);
+        
+        if (!tokenResult.rows.length || !tokenResult.rows[0].google_access_token) {
+            return res.status(401).json({ error: 'No Google Calendar access token', authError: true });
+        }
+        
+        const accessToken = tokenResult.rows[0].google_access_token;
+        
+        // Determine which calendar to sync to
+        let googleCalendarId = event.google_calendar_id || 'primary';
+        
+        try {
+            // Create the event on Google Calendar
+            const googleEvent = await createRecurringEvent(
+                accessToken,
+                { 
+                    class_name: event.class_name, 
+                    location: event.location, 
+                    time_slot: event.time_slot, 
+                    days: event.days, 
+                    start_date: event.start_date, 
+                    end_date: event.end_date,
+                    reminders: event.reminders || [15] // Use stored reminders
+                },
+                googleCalendarId
+            );
+            
+            // Update database with Google event ID
+            const updateQuery = 'UPDATE events SET google_event_id = $1 WHERE event_id = $2';
+            await pool.query(updateQuery, [googleEvent.id, eventId]);
+            
+            console.log('✓ Event synced to Google Calendar:', googleEvent.id);
+            res.json({ 
+                message: 'Event synced to Google Calendar',
+                google_event_id: googleEvent.id 
+            });
+        } catch (googleErr) {
+            console.error('Error syncing to Google Calendar:', googleErr.message);
+            res.status(500).json({ error: 'Failed to sync to Google Calendar: ' + googleErr.message });
+        }
+    } catch (err) {
+        console.error('Error in sync endpoint:', err);
+        res.status(500).json({ error: 'Failed to sync event' });
     }
 });
 

@@ -49,7 +49,7 @@
     .dashboard-content {
         grid-template-columns: 1fr 1fr;
     }
-    .days-select {
+    .days-select, .reminder-options {
         display: flex;
         flex-direction: row;
         flex-wrap: wrap;
