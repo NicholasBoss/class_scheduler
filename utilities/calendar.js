@@ -75,10 +75,9 @@ function createDateInTimezone(dateStr, timeStr, timezone) {
     const offsetMs = utcDate.getTime() - tzMidnight.getTime();
     
     // Now create a date representing the desired time in the timezone
-    // We want: when this date's local time is interpreted as UTC, it represents the desired timezone time
-    // So we subtract the offset to get the UTC equivalent of the desired local time
+    // To convert timezone time to UTC, we ADD the offset
     const result = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
-    result.setTime(result.getTime() - offsetMs);
+    result.setTime(result.getTime() + offsetMs);
     
     return result;
 }
