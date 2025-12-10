@@ -114,15 +114,26 @@ async function createRecurringEvent(userAccessToken, eventDetails) {
 
         const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${recurringDays.join(',')};UNTIL=${untilString}`;
 
+        // Format datetime for Google Calendar API
+        const formatDateTimeForGoogle = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+        };
+
         const event = {
             summary: class_name,
             location: location || '',
             start: {
-                dateTime: startDateTime.toISOString(),
+                dateTime: formatDateTimeForGoogle(startDateTime),
                 timeZone: 'America/Denver'
             },
             end: {
-                dateTime: endDateTime.toISOString(),
+                dateTime: formatDateTimeForGoogle(endDateTime),
                 timeZone: 'America/Denver'
             },
             recurrence: [rrule]
