@@ -242,6 +242,11 @@ const CalendarSelection = (() => {
             // Reload calendars and refresh the UI
             await loadExistingCalendars();
             populateCalendarOptions();
+            
+            // Refresh the events list to remove deleted calendar's events
+            if (typeof loadEvents === 'function') {
+                await loadEvents();
+            }
         } catch (err) {
             console.error('Error deleting calendar:', err);
             alert(`✗ Failed to delete calendar: ${err.message}`);
