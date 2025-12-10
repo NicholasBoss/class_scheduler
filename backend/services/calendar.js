@@ -3,7 +3,11 @@ const fs = require('fs');
 const path = require('path');
 
 // Timezone configuration - use environment variable or default to America/Denver
-const DEFAULT_TIMEZONE = process.env.CALENDAR_TIMEZONE || 'America/Denver';
+// This is read dynamically at runtime to ensure environment variables are loaded
+function getDefaultTimezone() {
+    return process.env.CALENDAR_TIMEZONE || 'America/Denver';
+}
+
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // Helper function to parse time in 12-hour format to 24-hour
@@ -99,8 +103,8 @@ async function createRecurringEvent(userAccessToken, eventDetails) {
         const [startTime, endTime] = time_slot.split(' - ');
 
         // Parse times correctly for configured timezone
-        const startDateTime = createDateInTimezone(start_date, startTime, DEFAULT_TIMEZONE);
-        const endDateTime = createDateInTimezone(start_date, endTime, DEFAULT_TIMEZONE);
+        const startDateTime = createDateInTimezone(start_date, startTime, getDefaultTimezone());
+        const endDateTime = createDateInTimezone(start_date, endTime, getDefaultTimezone());
 
         // Create recurrence rule
         const dayMap = {
@@ -134,11 +138,11 @@ async function createRecurringEvent(userAccessToken, eventDetails) {
             location: location || '',
             start: {
                 dateTime: formatDateTimeForGoogle(startDateTime),
-                timeZone: DEFAULT_TIMEZONE
+                timeZone: getDefaultTimezone()
             },
             end: {
                 dateTime: formatDateTimeForGoogle(endDateTime),
-                timeZone: DEFAULT_TIMEZONE
+                timeZone: getDefaultTimezone()
             },
             recurrence: [rrule]
         };

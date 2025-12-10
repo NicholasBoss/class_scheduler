@@ -3,7 +3,11 @@ const fs = require('fs');
 const path = require('path');
 
 // Timezone configuration - use environment variable or default to America/Denver
-const DEFAULT_TIMEZONE = process.env.CALENDAR_TIMEZONE || 'America/Denver';
+// This is read dynamically at runtime to ensure environment variables are loaded
+function getDefaultTimezone() {
+    return process.env.CALENDAR_TIMEZONE || 'America/Denver';
+}
+
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // Helper function to parse time in 12-hour format to 24-hour
@@ -146,8 +150,8 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
         const [startTime, endTime] = time_slot.split(' - ');
 
         // Parse times correctly for America/Denver timezone
-        const startDateTime = createDateInTimezone(start_date, startTime, DEFAULT_TIMEZONE);
-        const endDateTime = createDateInTimezone(start_date, endTime, DEFAULT_TIMEZONE);
+        const startDateTime = createDateInTimezone(start_date, startTime, getDefaultTimezone());
+        const endDateTime = createDateInTimezone(start_date, endTime, getDefaultTimezone());
 
         // Format datetime without milliseconds for Google Calendar API
         const formatDateTimeForGoogle = (date) => {
@@ -165,11 +169,11 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
             location: location || '',
             start: {
                 dateTime: formatDateTimeForGoogle(startDateTime),
-                timeZone: DEFAULT_TIMEZONE
+                timeZone: getDefaultTimezone()
             },
             end: {
                 dateTime: formatDateTimeForGoogle(endDateTime),
-                timeZone: DEFAULT_TIMEZONE
+                timeZone: getDefaultTimezone()
             }
         };
 
@@ -222,17 +226,17 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
             // console.log(`📅 Recurring event - Start date: ${start_date}, First occurrence: ${firstOccurrenceDateString}, Days: ${days}`);
             
             // Update the event to use the first occurrence date
-            const firstOccurrenceStartDateTime = createDateInTimezone(firstOccurrenceDateString, startTime, DEFAULT_TIMEZONE);
-            const firstOccurrenceEndDateTime = createDateInTimezone(firstOccurrenceDateString, endTime, DEFAULT_TIMEZONE);
+            const firstOccurrenceStartDateTime = createDateInTimezone(firstOccurrenceDateString, startTime, getDefaultTimezone());
+            const firstOccurrenceEndDateTime = createDateInTimezone(firstOccurrenceDateString, endTime, getDefaultTimezone());
             
             event.start = {
                 dateTime: formatDateTimeForGoogle(firstOccurrenceStartDateTime),
-                timeZone: DEFAULT_TIMEZONE
+                timeZone: getDefaultTimezone()
             };
             
             event.end = {
                 dateTime: formatDateTimeForGoogle(firstOccurrenceEndDateTime),
-                timeZone: DEFAULT_TIMEZONE
+                timeZone: getDefaultTimezone()
             };
             
             // Parse end_date as a local date string (YYYY-MM-DD) without timezone conversion
@@ -334,11 +338,11 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
             location: location || '',
             start: {
                 dateTime: formatDateTimeForGoogle(startDateTime),
-                timeZone: DEFAULT_TIMEZONE
+                timeZone: getDefaultTimezone()
             },
             end: {
                 dateTime: formatDateTimeForGoogle(endDateTime),
-                timeZone: DEFAULT_TIMEZONE
+                timeZone: getDefaultTimezone()
             }
         };
 
@@ -454,7 +458,7 @@ async function createGoogleCalendar(userAccessToken, calendarName, calendarDescr
         const calendarResource = {
             summary: calendarName,
             description: calendarDescription || `Calendar for ${calendarName}`,
-            timeZone: DEFAULT_TIMEZONE
+            timeZone: getDefaultTimezone()
         };
 
         const response = await calendar.calendars.insert({
