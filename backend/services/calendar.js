@@ -68,15 +68,19 @@ function createDateInTimezone(dateStr, timeStr, timezone) {
         if (part.type === 'second') tzSecond = parseInt(part.value);
     });
     
-    // Calculate the offset between UTC midnight and the timezone's midnight
+    // Calculate the offset between UTC and the timezone
+    // Example: When it's midnight UTC (00:00), it's 6 PM previous day in Denver (18:00 previous day)
+    // So offset = UTC midnight time - TZ midnight time
     const tzMidnight = new Date(Date.UTC(tzYear, tzMonth, tzDay, tzHour, tzMinute, tzSecond));
     const offsetMs = utcDate.getTime() - tzMidnight.getTime();
     
-    // Now create the actual time we want (hours:minutes in that timezone)
-    const targetUtc = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
-    const adjustedDate = new Date(targetUtc.getTime() + offsetMs);
+    // Now create a date representing the desired time in the timezone
+    // We want: when this date's local time is interpreted as UTC, it represents the desired timezone time
+    // So we subtract the offset to get the UTC equivalent of the desired local time
+    const result = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
+    result.setTime(result.getTime() - offsetMs);
     
-    return adjustedDate;
+    return result;
 }
 
 // Get OAuth2 client for the user with Calendar scope
