@@ -443,6 +443,12 @@ function openEditModal(event) {
         checkbox.checked = isChecked;
     });
 
+    // Log for debugging
+    console.log('📅 Edit Modal - Original days from event:', event.days);
+    console.log('📅 Edit Modal - Parsed days array:', days);
+    const checkedBoxes = document.querySelectorAll('input[name="editDays"]:checked');
+    console.log('📅 Edit Modal - Currently checked boxes:', Array.from(checkedBoxes).map(cb => cb.value));
+
     // Restore reminders from stored data
     const editReminder30 = document.getElementById('editReminder30min');
     const editReminder60 = document.getElementById('editReminder1hr');
@@ -555,6 +561,12 @@ async function submitEditForm(e) {
     
     const dayCheckboxes = document.querySelectorAll('input[name="editDays"]:checked');
     const days = Array.from(dayCheckboxes).map(cb => cb.value).join(',');
+
+    // Validate that at least one day is selected
+    if (!days) {
+        alert('Please select at least one day for this class');
+        return;
+    }
 
     // Get time slot from either preset or custom input
     let timeSlot;

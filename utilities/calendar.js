@@ -281,25 +281,78 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
 }
 
 // Update event in Google Calendar
-async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails, calendarId = 'primary') {
+async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails, calendarId = 'primary', existingEventDays = null) {
     try {
         const auth = await getCalendarClient(userAccessToken);
         const calendar = google.calendar({ version: 'v3', auth });
         
         const { class_name, location, time_slot, days, end_date, start_date, reminders } = eventDetails;
 
+        console.log(`\n📋 updateRecurringEvent called:`);
+        console.log(`   Received days: "${days}" (type: ${typeof days})`);
+        console.log(`   Existing days: "${existingEventDays}" (type: ${typeof existingEventDays})`);
+        console.log(`   Days equal? ${days === existingEventDays}`);
+        if (existingEventDays) {
+            console.log(`   Byte comparison: [${[...days].map(c => c.charCodeAt(0)).join(',')}] vs [${[...existingEventDays].map(c => c.charCodeAt(0)).join(',')}]`);
+        }
+
+        // Check if days have changed - if so, delete old event and create new one
+        // This prevents orphaned occurrences from remaining in Google Calendar
+        if (existingEventDays && existingEventDays !== days) {
+            console.log(`\n${'='.repeat(60)}`);
+            console.log(`📅 DAY CHANGE DETECTED - Performing delete & recreate`);
+            console.log(`   Old days: "${existingEventDays}"`);
+            console.log(`   New days: "${days}"`);
+            console.log(`   Calendar ID: ${calendarId}`);
+            console.log(`${'='.repeat(60)}\n`);
+            console.log(`🗑️ Attempting to delete old recurring event (ID: ${googleEventId}) from calendar: ${calendarId}...`);
+            
+            try {
+                // Delete the entire event series (not just an instance)
+                await calendar.events.delete({
+                    calendarId: calendarId,
+                    eventId: googleEventId
+                });
+                
+                console.log(`✅ Successfully deleted old event from Google Calendar (eventId: ${googleEventId})`);
+            } catch (deleteErr) {
+                const status = deleteErr.response?.status;
+                const errorMessage = deleteErr.message || 'Unknown error';
+                
+                if (status === 404) {
+                    console.log(`⚠️ Event not found on Google Calendar (404) - it may have been already deleted`);
+                } else if (status === 410) {
+                    console.log(`⚠️ Event gone from Google Calendar (410) - resource was deleted`);
+                } else {
+                    console.error(`❌ Error deleting old event (Status ${status}): ${errorMessage}`);
+                    console.error(`Delete error details:`, {
+                        status,
+                        message: errorMessage,
+                        eventId: googleEventId,
+                        calendarId,
+                        responseData: deleteErr.response?.data
+                    });
+                }
+            }
+            
+            // Create new event with updated days instead of updating
+            console.log(`📅 Creating new recurring event with updated days...`);
+            return await createRecurringEvent(userAccessToken, eventDetails, calendarId);
+        }
+
+        // Days haven't changed - do a standard update
         const [startTime, endTime] = time_slot.split(' - ');
-        const startDateTime = createDateInTimezone(start_date, startTime, 'America/Denver');
-        const endDateTime = createDateInTimezone(start_date, endTime, 'America/Denver');
+        const startDateTime = createDateInTimezone(start_date, startTime, getDefaultTimezone());
+        const endDateTime = createDateInTimezone(start_date, endTime, getDefaultTimezone());
 
         // Format datetime without milliseconds for Google Calendar API
         const formatDateTimeForGoogle = (date) => {
-            const year = date.getUTCFullYear();
-            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-            const day = String(date.getUTCDate()).padStart(2, '0');
-            const hours = String(date.getUTCHours()).padStart(2, '0');
-            const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-            const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
             return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
         };
 
@@ -344,7 +397,7 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
             const untilString = `${untilYear}${untilMonth}${untilDay}`;
             
             const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${recurringDays.join(',')};UNTIL=${untilString}`;
-            console.log(`📅 Updating recurring event - Original end_date: ${end_date}, RRULE: ${rrule}`);
+            console.log(`📅 Updating recurring event - RRULE: ${rrule}`);
             event.recurrence = [rrule];
         }
 
@@ -409,7 +462,8 @@ async function deleteGoogleEvent(userAccessToken, googleEventId, calendarId = 'p
     } catch (err) {
         // If event not found on Google Calendar, that's okay - it was already deleted
         const status = err.response?.status || err.status;
-        if (status === 404 || (err.message && err.message.includes('404'))) {
+        if (status === 404 || status === 410 || (err.message && (err.message.includes('404') || err.message.includes('410')))) {
+            // 404 = Not Found, 410 = Gone (already deleted)
             // console.log('⚠ Event not found on Google Calendar (already deleted or never synced):', googleEventId);
             return true; // Treat as success since the event is gone
         }

@@ -770,6 +770,12 @@
                 checkbox.checked = days.includes(checkbox.value);
             });
             
+            // Log for debugging
+            console.log('📅 Edit Modal - Original days from event:', event.days);
+            console.log('📅 Edit Modal - Parsed days array:', days);
+            const checkedBoxes = document.querySelectorAll('input[name="editDays"]:checked');
+            console.log('📅 Edit Modal - Currently checked boxes:', Array.from(checkedBoxes).map(cb => cb.value));
+            
             modal.style.display = 'block';
         }
 
@@ -801,6 +807,12 @@
             
             const dayCheckboxes = document.querySelectorAll('input[name="editDays"]:checked');
             const days = Array.from(dayCheckboxes).map(cb => cb.value).join(',');
+
+            // Validate that at least one day is selected
+            if (!days) {
+                alert('Please select at least one day for this class');
+                return;
+            }
 
             if (!className || !timeSlot || !days || !startDate || !endDate) {
                 alert('Please fill in all required fields');

@@ -131,13 +131,55 @@ async function createRecurringEvent(userAccessToken, eventDetails) {
 }
 
 // Update event in Google Calendar
-async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails) {
+async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails, existingEventDays = null) {
     try {
         const auth = await getCalendarClient(userAccessToken);
         const calendar = google.calendar({ version: 'v3', auth });
         
         const { class_name, location, time_slot, days, end_date, start_date } = eventDetails;
 
+        // Check if days have changed - if so, delete old event and create new one
+        // This prevents orphaned occurrences from remaining in Google Calendar
+        if (existingEventDays && existingEventDays !== days) {
+            console.log(`📅 Event days changed from "${existingEventDays}" to "${days}"`);
+            console.log(`🗑️ Attempting to delete old recurring event (ID: ${googleEventId})...`);
+            
+            try {
+                const auth = await getCalendarClient(userAccessToken);
+                const calendar = google.calendar({ version: 'v3', auth });
+                
+                // Delete the entire event series (not just an instance)
+                await calendar.events.delete({
+                    calendarId: 'primary',
+                    eventId: googleEventId
+                });
+                
+                console.log(`✅ Successfully deleted old event from Google Calendar (eventId: ${googleEventId})`);
+            } catch (deleteErr) {
+                const status = deleteErr.response?.status;
+                const errorMessage = deleteErr.message || 'Unknown error';
+                
+                if (status === 404) {
+                    console.log(`⚠️ Event not found on Google Calendar (404) - it may have been already deleted`);
+                } else if (status === 410) {
+                    console.log(`⚠️ Event gone from Google Calendar (410) - resource was deleted`);
+                } else {
+                    console.error(`❌ Error deleting old event (Status ${status}): ${errorMessage}`);
+                    console.error(`Delete error details:`, {
+                        status,
+                        message: errorMessage,
+                        eventId: googleEventId,
+                        responseData: deleteErr.response?.data
+                    });
+                }
+            }
+            
+            // Create new event with updated days instead of updating
+            console.log(`📅 Creating new recurring event with updated days...`);
+            return await createRecurringEvent(userAccessToken, eventDetails);
+        }
+
+        // Days haven't changed - do a standard update
         const [startTime, endTime] = time_slot.split(' - ');
         const startDateTime = createDateInTimezone(start_date, startTime, 'America/Denver');
         const endDateTime = createDateInTimezone(start_date, endTime, 'America/Denver');
@@ -199,6 +241,13 @@ async function deleteGoogleEvent(userAccessToken, googleEventId) {
         console.log('✓ Event deleted from Google Calendar:', googleEventId);
         return true;
     } catch (err) {
+        // If event not found on Google Calendar, that's okay - it was already deleted
+        const status = err.response?.status || err.status;
+        if (status === 404 || status === 410 || (err.message && (err.message.includes('404') || err.message.includes('410')))) {
+            // 404 = Not Found, 410 = Gone (already deleted)
+            console.log('⚠ Event not found on Google Calendar (already deleted or never synced):', googleEventId);
+            return true; // Treat as success since the event is gone
+        }
         console.error('Error deleting Google Calendar event:', err.message);
         throw err;
     }

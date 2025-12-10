@@ -440,6 +440,12 @@ router.put('/:id', verifyToken, async (req, res) => {
         }
 
         const existingEvent = getResult.rows[0];
+        
+        console.log(`📝 Updating event ${req.params.id}:`);
+        console.log(`   Current days: ${existingEvent.days}`);
+        console.log(`   New days: ${days}`);
+        console.log(`   Google Event ID: ${existingEvent.google_event_id}`);
+        console.log(`   Semester: ${existingEvent.semester_name}`);
 
         // Try to update in Google Calendar if both event ID and access token exist
         if (existingEvent.google_event_id) {
@@ -477,12 +483,24 @@ router.put('/:id', verifyToken, async (req, res) => {
                     }
                     
                     try {
-                        await updateRecurringEvent(
+                        const googleUpdateResponse = await updateRecurringEvent(
                             accessToken,
                             existingEvent.google_event_id,
                             { class_name, location: locationValidation.formatted, time_slot, days, start_date, end_date, reminders },
-                            calendarId
+                            calendarId,
+                            existingEvent.days  // Pass original days to detect changes
                         );
+                        
+                        // If updateRecurringEvent created a new event (days changed), 
+                        // it returns the new event. Update the database with the new ID.
+                        if (googleUpdateResponse && googleUpdateResponse.id !== existingEvent.google_event_id) {
+                            console.log(`📝 Updating database with new Google event ID: ${googleUpdateResponse.id}`);
+                            await pool.query(
+                                'UPDATE events SET google_event_id = $1 WHERE event_id = $2',
+                                [googleUpdateResponse.id, req.params.id]
+                            );
+                        }
+                        
                         console.log(`✓ Event updated in Google Calendar (${calendarId})`);
                     } catch (updateErr) {
                         console.error('Error updating event in Google Calendar:', updateErr.message);
