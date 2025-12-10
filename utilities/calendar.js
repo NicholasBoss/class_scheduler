@@ -33,7 +33,7 @@ function parseTime12to24(timeStr) {
 }
 
 // Helper function to create a Date object in a specific timezone
-// This works by creating an ISO string in the desired timezone
+// This returns a date object whose toString() will show the correct local time
 function createDateInTimezone(dateStr, timeStr, timezone) {
     // Parse time string (12-hour format) to 24-hour format
     const time24 = parseTime12to24(timeStr);
@@ -42,44 +42,11 @@ function createDateInTimezone(dateStr, timeStr, timezone) {
     // dateStr is in YYYY-MM-DD format
     const [year, month, day] = dateStr.split('-').map(Number);
     
-    // Create a date object representing midnight UTC on that date
-    const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+    // Simply create a date with the desired local time
+    // The formatter will handle the timezone when formatting
+    const date = new Date(year, month - 1, day, hours, minutes, 0);
     
-    // Get what time it is in the target timezone when it's midnight UTC on that date
-    const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    });
-    
-    const parts = formatter.formatToParts(utcDate);
-    let tzYear, tzMonth, tzDay, tzHour, tzMinute, tzSecond;
-    parts.forEach(part => {
-        if (part.type === 'year') tzYear = parseInt(part.value);
-        if (part.type === 'month') tzMonth = parseInt(part.value) - 1;
-        if (part.type === 'day') tzDay = parseInt(part.value);
-        if (part.type === 'hour') tzHour = parseInt(part.value);
-        if (part.type === 'minute') tzMinute = parseInt(part.value);
-        if (part.type === 'second') tzSecond = parseInt(part.value);
-    });
-    
-    // Calculate the offset between UTC and the timezone
-    // Example: When it's midnight UTC (00:00), it's 6 PM previous day in Denver (18:00 previous day)
-    // So offset = UTC midnight time - TZ midnight time
-    const tzMidnight = new Date(Date.UTC(tzYear, tzMonth, tzDay, tzHour, tzMinute, tzSecond));
-    const offsetMs = utcDate.getTime() - tzMidnight.getTime();
-    
-    // Now create a date representing the desired time in the timezone
-    // To convert timezone time to UTC, we ADD the offset
-    const result = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
-    result.setTime(result.getTime() + offsetMs);
-    
-    return result;
+    return date;
 }
 
 // Get OAuth2 client for the user
