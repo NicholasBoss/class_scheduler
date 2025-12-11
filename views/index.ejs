@@ -38,7 +38,11 @@
 
             <!-- Call to Action -->
             <div class="landing-cta">
-                <a href="/login" class="cta-button cta-primary">Get Started</a>
+                <% if (locals.loggedin) { %>
+                    <a href="/dashboard" class="cta-button cta-primary">Go to Dashboard</a>
+                <% } else { %>
+                    <a href="/login" class="cta-button cta-primary">Get Started</a>
+                <% } %>
             </div>
         </div>
 
