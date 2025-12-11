@@ -78,8 +78,9 @@ async function refreshGoogleAccessToken(accountId) {
         const { google_access_token, google_refresh_token } = result.rows[0];
         
         if (!google_refresh_token) {
-            // console.warn('⚠ No refresh token available, cannot refresh access token');
-            return google_access_token;
+            // No refresh token - can't verify if access token is valid
+            // Treat this as an authentication error
+            throw new Error('No refresh token available. Please re-authenticate with Google Calendar.');
         }
         
         const oauth2Client = new google.auth.OAuth2(

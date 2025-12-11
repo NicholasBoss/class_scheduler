@@ -194,7 +194,9 @@ function setupFormSubmission() {
             // Check sync status after 5-10 seconds and re-render with status badges
             checkSyncStatusAfterDelay(7000);
         } catch (err) {
-            console.error('Error creating schedule:', err);
+            console.error('❌ Error creating schedule:', err);
+            console.error('   authError flag:', err.authError);
+            console.error('   Error message:', err.message);
             
             // Re-enable the button on error
             submitButton.disabled = false;
@@ -202,6 +204,7 @@ function setupFormSubmission() {
             
             // Check if this is a Google Calendar auth error
             if (err.authError) {
+                console.log('🔐 Showing Google auth notification...');
                 showGoogleNotification(
                     `<strong>⚠ Google Calendar Authentication Failed</strong><br><br>` +
                     `We could not create your class schedule because your Google Calendar authentication has expired or is invalid.<br><br>` +
