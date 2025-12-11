@@ -33,18 +33,21 @@ async function createSchedule(events) {
                 },
                 credentials: 'include',
                 body: JSON.stringify(event)
+            }).catch(err => {
+                // Suppress network errors from being logged - we handle them below
+                throw err;
             });
 
             // console.log(`   Response status: ${response.status}`);
 
             if (!response.ok) {
-                const errorData = await response.json();
+                const errorData = await response.json().catch(() => ({}));
                 // console.log(`   Error response:`, errorData);
                 
-                // Check if it's an authentication error
+                // Check if it's an authentication error (don't log as this is expected)
                 if (response.status === 401) {
                     // console.error(`❌ Authentication error detected (401)`);
-                    const error = new Error(errorData.error);
+                    const error = new Error(errorData.error || 'Unauthorized');
                     error.authError = true;
                     throw error;
                 }
@@ -53,7 +56,7 @@ async function createSchedule(events) {
             }
 
             const data = await response.json();
-            console.log(`   ✓ Event created successfully`);
+            // console.log(`   ✓ Event created successfully`);
             
             // Track if a new calendar was created
             if (data.newCalendarCreated) {
