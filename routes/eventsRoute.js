@@ -164,25 +164,25 @@ router.post('/', verifyToken, async (req, res) => {
         // This ensures we fail fast if credentials are invalid
         if (create_separate_calendar || calendar_type !== 'primary') {
             // User wants to use Google Calendar, so verify authentication first
-            console.log(`🔐 Auth check required: create_separate_calendar=${create_separate_calendar}, calendar_type=${calendar_type}`);
+            // console.log(`🔐 Auth check required: create_separate_calendar=${create_separate_calendar}, calendar_type=${calendar_type}`);
             try {
                 const accessTokenQuery = 'SELECT google_access_token, google_refresh_token FROM account WHERE account_id = $1';
                 const tokenResult = await pool.query(accessTokenQuery, [req.user.account_id]);
                 
                 if (!tokenResult.rows.length || !tokenResult.rows[0].google_access_token) {
-                    console.log(`❌ Auth failed: No access token found for account ${req.user.account_id}`);
+                    // console.log(`❌ Auth failed: No access token found for account ${req.user.account_id}`);
                     return res.status(401).json({ 
                         error: 'Google Calendar not connected',
                         authError: true
                     });
                 }
                 
-                console.log(`✓ Access token found, attempting to refresh...`);
+                // console.log(`✓ Access token found, attempting to refresh...`);
                 
                 // Try to refresh token to verify credentials are valid
                 try {
                     await refreshGoogleAccessToken(req.user.account_id);
-                    console.log('✓ Google access token verified for create operation');
+                    // console.log('✓ Google access token verified for create operation');
                 } catch (refreshErr) {
                     console.error('❌ Google authentication failed:', refreshErr.message);
                     return res.status(401).json({ 
@@ -199,7 +199,7 @@ router.post('/', verifyToken, async (req, res) => {
                 });
             }
         } else {
-            console.log(`✓ No auth check needed: Using primary calendar (create_separate_calendar=${create_separate_calendar}, calendar_type=${calendar_type})`);
+            // console.log(`✓ No auth check needed: Using primary calendar (create_separate_calendar=${create_separate_calendar}, calendar_type=${calendar_type})`);
         }
 
         // Build recurrence rule
