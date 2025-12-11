@@ -216,9 +216,9 @@ const CalendarSelection = (() => {
                 const createOption = Array.from(select.options).find(opt => opt.value === 'create');
                 if (createOption) {
                     select.value = 'create';
-                    console.log(`No existing calendar for ${semesterName}, will create new one`);
+                    // console.log(`No existing calendar for ${semesterName}, will create new one`);
                 } else {
-                    console.log(`Calendar already exists for ${semesterName}, create option hidden`);
+                    // console.log(`Calendar already exists for ${semesterName}, create option hidden`);
                 }
             }
         }

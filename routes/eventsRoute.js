@@ -160,6 +160,42 @@ router.post('/', verifyToken, async (req, res) => {
             return res.status(400).json({ error: locationValidation.error });
         }
 
+        // FIRST: Check Google Calendar authentication BEFORE creating anything in database
+        // This ensures we fail fast if credentials are invalid
+        if (create_separate_calendar || calendar_type !== 'primary') {
+            // User wants to use Google Calendar, so verify authentication first
+            try {
+                const accessTokenQuery = 'SELECT google_access_token, google_refresh_token FROM account WHERE account_id = $1';
+                const tokenResult = await pool.query(accessTokenQuery, [req.user.account_id]);
+                
+                if (!tokenResult.rows.length || !tokenResult.rows[0].google_access_token) {
+                    return res.status(401).json({ 
+                        error: 'Google Calendar not connected',
+                        authError: true
+                    });
+                }
+                
+                // Try to refresh token to verify credentials are valid
+                try {
+                    await refreshGoogleAccessToken(req.user.account_id);
+                    // console.log('✓ Google access token verified for create operation');
+                } catch (refreshErr) {
+                    console.error('⚠ Google authentication failed:', refreshErr.message);
+                    return res.status(401).json({ 
+                        error: 'Google Calendar authentication failed. Invalid or expired credentials.',
+                        authError: true,
+                        details: refreshErr.message
+                    });
+                }
+            } catch (authCheckErr) {
+                console.error('Error checking Google authentication:', authCheckErr.message);
+                return res.status(401).json({ 
+                    error: 'Failed to verify Google Calendar authentication',
+                    authError: true
+                });
+            }
+        }
+
         // Build recurrence rule
         const dayMap = {
             'Monday': 'MO',
@@ -185,7 +221,7 @@ router.post('/', verifyToken, async (req, res) => {
             rrule = `RRULE:FREQ=WEEKLY;BYDAY=${recurringDays.join(',')};UNTIL=${untilString}`;
         }
 
-        // FIRST: Create event in database (with null google_event_id initially)
+        // SECOND: Create event in database (with null google_event_id initially)
         // This ensures we only create in Google Calendar if database insertion succeeds
         const insertQuery = `
             INSERT INTO events (account_id, class_name, location, time_slot, days, start_date, end_date, created_at, recurrence_rule, google_event_id, semester_name, reminders)
