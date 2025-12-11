@@ -24,7 +24,7 @@ async function createSchedule(events) {
         let newCalendarSemester = null;
         
         for (const event of events) {
-            console.log(`📝 Creating event: ${event.class_name} (calendar_type: ${event.calendar_type}, create_separate: ${event.create_separate_calendar})`);
+            // console.log(`📝 Creating event: ${event.class_name} (calendar_type: ${event.calendar_type}, create_separate: ${event.create_separate_calendar})`);
             
             const response = await fetch(`${API_BASE_URL}/events`, {
                 method: 'POST',
@@ -35,15 +35,15 @@ async function createSchedule(events) {
                 body: JSON.stringify(event)
             });
 
-            console.log(`   Response status: ${response.status}`);
+            // console.log(`   Response status: ${response.status}`);
 
             if (!response.ok) {
                 const errorData = await response.json();
-                console.log(`   Error response:`, errorData);
+                // console.log(`   Error response:`, errorData);
                 
                 // Check if it's an authentication error
                 if (response.status === 401) {
-                    console.error(`❌ Authentication error detected (401)`);
+                    // console.error(`❌ Authentication error detected (401)`);
                     const error = new Error(errorData.error);
                     error.authError = true;
                     throw error;
@@ -76,7 +76,7 @@ async function createSchedule(events) {
             newCalendarSemester
         };
     } catch (err) {
-        console.error('Error creating schedule:', err);
+        // console.error('Error creating schedule:', err);
         throw err;
     }
 }
