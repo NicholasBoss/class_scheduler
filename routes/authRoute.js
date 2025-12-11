@@ -38,7 +38,7 @@ router.post('/google-login', async (req, res) => {
 
         // Decode Google JWT
         const googleData = decodeGoogleJWT(credential);
-        console.log('Google data:', googleData);
+        // console.log('Google data:', googleData);
 
         const { sub: google_id, email, name } = googleData;
         const [firstName, lastName] = name ? name.split(' ') : ['', ''];
@@ -102,7 +102,7 @@ router.get('/oauth-url', (req, res) => {
             state: Math.random().toString(36).substring(7) // Simple state token
         });
 
-        console.log('✓ Generated OAuth URL with Calendar scope');
+        // console.log('✓ Generated OAuth URL with Calendar scope');
         res.json({ url });
     } catch (err) {
         console.error('Error generating OAuth URL:', err);
@@ -119,16 +119,16 @@ router.get('/callback', async (req, res) => {
             return res.status(400).json({ error: 'No authorization code provided' });
         }
 
-        console.log('✓ Received authorization code');
+        // console.log('✓ Received authorization code');
 
         // Exchange code for tokens
         const { tokens } = await oauth2Client.getToken(code);
-        console.log('✓ Exchanged code for tokens');
+        // console.log('✓ Exchanged code for tokens');
 
         // Get user info from the ID token
         const idToken = tokens.id_token;
         const googleData = decodeGoogleJWT(idToken);
-        console.log('Google OAuth data:', { email: googleData.email, name: googleData.name });
+        // console.log('Google OAuth data:', { email: googleData.email, name: googleData.name });
 
         const { sub: google_id, email, name } = googleData;
         const [firstName, lastName] = name ? name.split(' ') : ['', ''];
@@ -148,7 +148,7 @@ router.get('/callback', async (req, res) => {
                 WHERE account_id = $3
             `;
             await pool.query(updateQuery, [tokens.access_token, tokens.refresh_token || null, accountId]);
-            console.log('✓ Updated existing user with access token');
+            // console.log('✓ Updated existing user with access token');
         } else {
             // New user - create account with access token
             const insertQuery = `
@@ -158,7 +158,7 @@ router.get('/callback', async (req, res) => {
             `;
             const insertResult = await pool.query(insertQuery, [google_id, email, firstName, lastName, tokens.access_token, tokens.refresh_token || null]);
             accountId = insertResult.rows[0].account_id;
-            console.log('✓ Created new user with access token');
+            // console.log('✓ Created new user with access token');
         }
 
         // Generate JWT token

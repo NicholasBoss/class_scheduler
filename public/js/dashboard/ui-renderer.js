@@ -149,7 +149,7 @@ function displayFilteredEvents(events) {
                     <div class="event-actions">
                         ${statusBadge}
                         <button class="btn-edit" onclick="editEvent(${event.event_id})">Edit</button>
-                        <button class="btn-delete" onclick="deleteEvent(${event.event_id})">Delete</button>
+                        <button class="btn-delete" data-event-id="${event.event_id}" data-semester="${event.semester_name}">Delete</button>
                     </div>
                 </div>
                 <p><strong>Semester:</strong> ${event.semester_name}</p>
@@ -163,4 +163,9 @@ function displayFilteredEvents(events) {
     });
     html += '</div>';
     container.innerHTML = html;
+    
+    // Setup delete button listeners after rendering
+    if (typeof setupDeleteButtonListeners === 'function') {
+        setupDeleteButtonListeners();
+    }
 }

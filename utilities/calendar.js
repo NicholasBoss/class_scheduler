@@ -150,7 +150,7 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
         // Check if this is a single-day event
         if (start_date === end_date) {
             // Single day event - no recurrence
-            console.log(`📅 Single day event on ${start_date}`);
+            // console.log(`📅 Single day event on ${start_date}`);
         } else {
             // Multi-day recurring event
             // Map day names to getDay() values (0=Sunday, 1=Monday, etc.)
@@ -242,7 +242,7 @@ async function createRecurringEvent(userAccessToken, eventDetails, calendarId = 
             });
             // console.log(`🔔 Reminders added (15-min default + custom):`, reminderOverrides);
         } else {
-            console.log(`🔔 Default 15-minute reminder added`);
+            // console.log(`🔔 Default 15-minute reminder added`);
         }
         
         event.reminders = {
@@ -288,24 +288,24 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
         
         const { class_name, location, time_slot, days, end_date, start_date, reminders } = eventDetails;
 
-        console.log(`\n📋 updateRecurringEvent called:`);
-        console.log(`   Received days: "${days}" (type: ${typeof days})`);
-        console.log(`   Existing days: "${existingEventDays}" (type: ${typeof existingEventDays})`);
-        console.log(`   Days equal? ${days === existingEventDays}`);
+        // console.log(`\n📋 updateRecurringEvent called:`);
+        // console.log(`   Received days: "${days}" (type: ${typeof days})`);
+        // console.log(`   Existing days: "${existingEventDays}" (type: ${typeof existingEventDays})`);
+        // console.log(`   Days equal? ${days === existingEventDays}`);
         if (existingEventDays) {
-            console.log(`   Byte comparison: [${[...days].map(c => c.charCodeAt(0)).join(',')}] vs [${[...existingEventDays].map(c => c.charCodeAt(0)).join(',')}]`);
+            // console.log(`   Byte comparison: [${[...days].map(c => c.charCodeAt(0)).join(',')}] vs [${[...existingEventDays].map(c => c.charCodeAt(0)).join(',')}]`);
         }
 
         // Check if days have changed - if so, delete old event and create new one
         // This prevents orphaned occurrences from remaining in Google Calendar
         if (existingEventDays && existingEventDays !== days) {
-            console.log(`\n${'='.repeat(60)}`);
-            console.log(`📅 DAY CHANGE DETECTED - Performing delete & recreate`);
-            console.log(`   Old days: "${existingEventDays}"`);
-            console.log(`   New days: "${days}"`);
-            console.log(`   Calendar ID: ${calendarId}`);
-            console.log(`${'='.repeat(60)}\n`);
-            console.log(`🗑️ Attempting to delete old recurring event (ID: ${googleEventId}) from calendar: ${calendarId}...`);
+            // console.log(`\n${'='.repeat(60)}`);
+            // console.log(`📅 DAY CHANGE DETECTED - Performing delete & recreate`);
+            // console.log(`   Old days: "${existingEventDays}"`);
+            // console.log(`   New days: "${days}"`);
+            // console.log(`   Calendar ID: ${calendarId}`);
+            // console.log(`${'='.repeat(60)}\n`);
+            // console.log(`🗑️ Attempting to delete old recurring event (ID: ${googleEventId}) from calendar: ${calendarId}...`);
             
             try {
                 // Delete the entire event series (not just an instance)
@@ -314,15 +314,15 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
                     eventId: googleEventId
                 });
                 
-                console.log(`✅ Successfully deleted old event from Google Calendar (eventId: ${googleEventId})`);
+                // console.log(`✅ Successfully deleted old event from Google Calendar (eventId: ${googleEventId})`);
             } catch (deleteErr) {
                 const status = deleteErr.response?.status;
                 const errorMessage = deleteErr.message || 'Unknown error';
                 
                 if (status === 404) {
-                    console.log(`⚠️ Event not found on Google Calendar (404) - it may have been already deleted`);
+                    console.warn(`⚠️ Event not found on Google Calendar (404) - it may have been already deleted`);
                 } else if (status === 410) {
-                    console.log(`⚠️ Event gone from Google Calendar (410) - resource was deleted`);
+                    console.warn(`⚠️ Event gone from Google Calendar (410) - resource was deleted`);
                 } else {
                     console.error(`❌ Error deleting old event (Status ${status}): ${errorMessage}`);
                     console.error(`Delete error details:`, {
@@ -336,7 +336,7 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
             }
             
             // Create new event with updated days instead of updating
-            console.log(`📅 Creating new recurring event with updated days...`);
+            // console.log(`📅 Creating new recurring event with updated days...`);
             return await createRecurringEvent(userAccessToken, eventDetails, calendarId);
         }
 
@@ -372,7 +372,7 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
         // Check if this is a single-day event
         if (start_date === end_date) {
             // Single day event for update
-            console.log(`📅 Updating single day event on ${start_date}`);
+            // console.log(`📅 Updating single day event on ${start_date}`);
         } else {
             // Multi-day recurring event
             const dayMap = {
@@ -397,7 +397,7 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
             const untilString = `${untilYear}${untilMonth}${untilDay}`;
             
             const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${recurringDays.join(',')};UNTIL=${untilString}`;
-            console.log(`📅 Updating recurring event - RRULE: ${rrule}`);
+            // console.log(`📅 Updating recurring event - RRULE: ${rrule}`);
             event.recurrence = [rrule];
         }
 
@@ -416,9 +416,9 @@ async function updateRecurringEvent(userAccessToken, googleEventId, eventDetails
                     minutes: parseInt(minutesBefore)
                 });
             });
-            console.log(`🔔 Reminders updated (15-min default + custom):`, reminderOverrides);
+            // console.log(`🔔 Reminders updated (15-min default + custom):`, reminderOverrides);
         } else {
-            console.log(`🔔 Default 15-minute reminder (no custom reminders)`);
+            // console.log(`🔔 Default 15-minute reminder (no custom reminders)`);
         }
         
         event.reminders = {

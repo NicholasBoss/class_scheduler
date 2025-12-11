@@ -18,22 +18,11 @@ router.get("/privacy", util.handleErrors(baseController.buildPrivacy))
 // Verification Route
 router.get("/verify", util.handleErrors(baseController.verifyGoogle))
 
-
 // Dashboard Route
 router.get("/dashboard", util.handleErrors(baseController.buildDashboard))
 
 // Logout Route
-router.get("/logout", (req, res) => {
-    // Clear the JWT cookie
-    res.clearCookie('jwt', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
-    });
-    
-    // Redirect to home
-    res.redirect("/")
-})
+router.get("/logout", util.handleErrors(baseController.logout))
 
 // Export
 module.exports = router

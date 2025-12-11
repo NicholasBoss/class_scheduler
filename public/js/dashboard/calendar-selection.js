@@ -157,19 +157,19 @@ const CalendarSelection = (() => {
 
     // Handle calendar selection change
     function onCalendarSelectionChange(e) {
-        const value = e.target.value;
+        // const value = e.target.value;
         
-        if (value === 'primary') {
-            // Using default/primary calendar
-            console.log('Using default calendar');
-        } else if (value === 'create') {
-            // Creating new calendar - no special handling needed
-            console.log('Creating new calendar for this semester');
-        } else if (value.startsWith('use:')) {
-            // Using existing calendar
-            const semesterName = value.substring(4);
-            // console.log('Using existing calendar for:', semesterName);
-        }
+        // if (value === 'primary') {
+        //     // Using default/primary calendar
+        //     console.log('Using default calendar');
+        // } else if (value === 'create') {
+        //     // Creating new calendar - no special handling needed
+        //     console.log('Creating new calendar for this semester');
+        // } else if (value.startsWith('use:')) {
+        //     // Using existing calendar
+        //     const semesterName = value.substring(4);
+        //     // console.log('Using existing calendar for:', semesterName);
+        // }
         
         // Save form data when calendar selection changes
         FormDataPersistence.save();

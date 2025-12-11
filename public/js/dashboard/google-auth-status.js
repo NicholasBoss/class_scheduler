@@ -70,7 +70,7 @@ const GoogleAuthStatus = (() => {
             }
 
             const data = await response.json();
-            console.log('✓ Redirecting to Google OAuth');
+            // console.log('✓ Redirecting to Google OAuth');
             window.location.href = data.url;
         } catch (err) {
             console.error('Error during re-authorization:', err);

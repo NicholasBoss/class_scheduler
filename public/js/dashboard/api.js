@@ -88,7 +88,7 @@ async function checkSyncStatusAfterDelay(delayMs = 7000) {
         // Re-render events with updated status
         await loadEvents();
         
-        console.log('✓ Events re-rendered with sync status');
+        // console.log('✓ Events re-rendered with sync status');
     } catch (err) {
         console.error('Error checking sync status after creation:', err);
     }

@@ -46,7 +46,7 @@ const ColorPicker = (() => {
 
         // Ensure colors are loaded
         if (!allColors || allColors.length === 0) {
-            console.log('🔄 Colors not loaded, fetching...');
+            // console.log('🔄 Colors not loaded, fetching...');
             await fetchAvailableColors();
         }
 
@@ -130,7 +130,7 @@ const ColorPicker = (() => {
             // Show loading state
             const modal = document.getElementById('colorPickerModal');
             const saveBtn = modal.querySelector('.btn-save-color');
-            const originalText = saveBtn.textContent;
+            // const originalText = saveBtn.textContent;
             saveBtn.textContent = 'Saving...';
             saveBtn.disabled = true;
 
@@ -154,7 +154,7 @@ const ColorPicker = (() => {
                 throw new Error(errorData.error || `HTTP ${response.status}`);
             }
 
-            const result = await response.json();
+            // const result = await response.json();
             // console.log('✓ Server response:', result);
 
             // Update visual feedback

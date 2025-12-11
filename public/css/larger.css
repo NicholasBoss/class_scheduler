@@ -70,4 +70,19 @@
         grid-template-columns: 1fr 1fr;
         gap: 15px;
     }
+
+    .color-grid {
+        grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
+        gap: 10px;
+        padding: 15px;
+    }
+
+    .color-button {
+        width: 45px;
+        height: 45px;
+    }
+
+    .create-section, .events-section {
+        padding: 20px;
+    }
 }

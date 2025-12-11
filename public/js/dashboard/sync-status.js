@@ -29,7 +29,7 @@ const SyncStatusChecker = (() => {
     }
 
     function displaySyncStatus(events) {
-        console.log('📋 Displaying sync status for', events ? events.length : 0, 'events');
+        // console.log('📋 Displaying sync status for', events ? events.length : 0, 'events');
         
         const modal = document.getElementById(SYNC_MODAL_ID);
         if (!modal) {
@@ -47,7 +47,7 @@ const SyncStatusChecker = (() => {
         listContainer.innerHTML = '';
 
         if (!events || events.length === 0) {
-            console.log('✓ No events to display');
+            // console.log('✓ No events to display');
             const emptyMessage = document.createElement('div');
             emptyMessage.className = 'sync-status-summary';
             emptyMessage.innerHTML = '<p>No events to check for sync status.</p>';

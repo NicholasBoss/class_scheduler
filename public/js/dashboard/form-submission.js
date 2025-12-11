@@ -122,8 +122,8 @@ function setupFormSubmission() {
             const reminder30Element = document.getElementById(`reminder30min${i}`);
             const reminder60Element = document.getElementById(`reminder1hr${i}`);
             
-            console.log(`Class ${i}: reminder30min element:`, reminder30Element, `checked:`, reminder30Element?.checked);
-            console.log(`Class ${i}: reminder1hr element:`, reminder60Element, `checked:`, reminder60Element?.checked);
+            // console.log(`Class ${i}: reminder30min element:`, reminder30Element, `checked:`, reminder30Element?.checked);
+            // console.log(`Class ${i}: reminder1hr element:`, reminder60Element, `checked:`, reminder60Element?.checked);
             
             if (reminder30Element?.checked) {
                 reminders.push(30);
@@ -132,7 +132,7 @@ function setupFormSubmission() {
                 reminders.push(60);
             }
             
-            console.log(`Class ${i}: Reminders array:`, reminders);
+            // console.log(`Class ${i}: Reminders array:`, reminders);
 
             if (location) {
                 const locationValidation = validateLocation(location);
@@ -184,7 +184,7 @@ function setupFormSubmission() {
             
             // If a new calendar was created, refresh calendars to get the correct color
             if (result.newCalendarCreated) {
-                console.log(`✓ New calendar created for ${result.newCalendarSemester}, refreshing...`);
+                // console.log(`✓ New calendar created for ${result.newCalendarSemester}, refreshing...`);
                 await CalendarSelection.loadExistingCalendars();
             }
             
@@ -444,10 +444,10 @@ function openEditModal(event) {
     });
 
     // Log for debugging
-    console.log('📅 Edit Modal - Original days from event:', event.days);
-    console.log('📅 Edit Modal - Parsed days array:', days);
+    // console.log('📅 Edit Modal - Original days from event:', event.days);
+    // console.log('📅 Edit Modal - Parsed days array:', days);
     const checkedBoxes = document.querySelectorAll('input[name="editDays"]:checked');
-    console.log('📅 Edit Modal - Currently checked boxes:', Array.from(checkedBoxes).map(cb => cb.value));
+    // console.log('📅 Edit Modal - Currently checked boxes:', Array.from(checkedBoxes).map(cb => cb.value));
 
     // Restore reminders from stored data
     const editReminder30 = document.getElementById('editReminder30min');
@@ -641,7 +641,7 @@ async function submitEditForm(e) {
         
         // If event was not synced before, attempt to sync it now
         if (form.dataset.googleEventId === 'null' || !form.dataset.googleEventId) {
-            console.log('🔄 Event was not previously synced, attempting to sync...');
+            // console.log('🔄 Event was not previously synced, attempting to sync...');
             try {
                 const syncResponse = await fetch(`${API_BASE_URL}/events/${eventId}/sync`, {
                     method: 'POST',
@@ -653,7 +653,7 @@ async function submitEditForm(e) {
                 
                 if (syncResponse.ok) {
                     const syncData = await syncResponse.json();
-                    console.log('✓ Event synced to Google Calendar:', syncData.google_event_id);
+                    // console.log('✓ Event synced to Google Calendar:', syncData.google_event_id);
                     alert('✓ Class updated and synced to Google Calendar!');
                 } else if (syncResponse.status === 401) {
                     const syncData = await syncResponse.json();
@@ -706,7 +706,9 @@ function deleteEvent(eventId) {
             .then(async (response) => {
                 alert('Event deleted successfully');
                 
-                // Load events and check if calendar is now empty
+                // Get the semester name that was passed in the button's data attribute
+                // We need to find it since the button is now removed from the DOM
+                // Load events to get the full list and check if any calendar is now empty
                 const eventsResponse = await fetch(`${API_BASE_URL}/events`, {
                     credentials: 'include'
                 });
@@ -714,8 +716,7 @@ function deleteEvent(eventId) {
                 if (eventsResponse.ok) {
                     const allEvents = await eventsResponse.json();
                     
-                    // Get the semester of the deleted event from response if available
-                    // Or reload and find calendars that have no events
+                    // Fetch all calendars to check which ones might be empty
                     const calendarsResponse = await fetch(`${API_BASE_URL}/events/calendars/semesters`, {
                         credentials: 'include'
                     });
@@ -724,6 +725,7 @@ function deleteEvent(eventId) {
                         const calendars = await calendarsResponse.json();
                         
                         // Check each calendar to see if it has any events
+                        // Only offer to delete if calendar has no events
                         for (const calendar of calendars) {
                             const calendarHasEvents = allEvents.some(event => event.semester_name === calendar.semester_name);
                             
@@ -749,6 +751,18 @@ function deleteEvent(eventId) {
     }
 }
 
+// Setup delete button listeners (called when events are loaded)
+function setupDeleteButtonListeners() {
+    const deleteButtons = document.querySelectorAll('.btn-delete');
+    deleteButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const eventId = btn.dataset.eventId;
+            deleteEvent(eventId);
+        });
+    });
+}
+
 // Helper function to delete calendar (reusing from calendar-selection.js logic)
 async function deleteCalendar(calendarId, calendarName) {
     try {
@@ -762,7 +776,7 @@ async function deleteCalendar(calendarId, calendarName) {
             throw new Error(errorData.error || 'Failed to delete calendar');
         }
 
-        console.log(`✓ Calendar "${calendarName}" deleted successfully`);
+        // console.log(`✓ Calendar "${calendarName}" deleted successfully`);
         
         // Refresh the calendar selection if CalendarSelection module is available
         if (typeof CalendarSelection !== 'undefined') {

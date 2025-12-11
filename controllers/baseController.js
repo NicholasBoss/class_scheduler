@@ -23,14 +23,14 @@ baseController.buildLogin = async function(req, res){
 
 baseController.buildDashboard = async function(req, res){
     // Check if user is authenticated via JWT
-    console.log('Dashboard - req.user:', req.user ? req.user.email : 'UNDEFINED')
+    // console.log('Dashboard - req.user:', req.user ? req.user.email : 'UNDEFINED')
     
     if (!req.user) {
-        console.log('❌ No user found on dashboard, redirecting to login')
+        // console.log('❌ No user found on dashboard, redirecting to login')
         return res.redirect('/login')
     }
 
-    console.log('✓ User authenticated, rendering dashboard')
+    // console.log('✓ User authenticated, rendering dashboard')
     return res.render('dashboard/dashboard', {
         title: 'Dashboard', 
         link: 'dashboard', 
@@ -59,6 +59,18 @@ baseController.verifyGoogle = async function(req, res){
         loggedin: res.locals.loggedin || false,
         accountData: res.locals.accountData || null
     })
+}
+
+baseController.logout = async function(req, res) {
+    // Clear the JWT cookie
+    res.clearCookie('jwt', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
+    });
+    
+    // Redirect to home
+    res.redirect("/")
 }
 
 module.exports = baseController

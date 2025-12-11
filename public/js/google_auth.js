@@ -1,11 +1,11 @@
 const API_BASE_URL = '<%= apiBaseUrl %>';
 
-        console.log('Login page script loaded');
-        console.log('API_BASE_URL:', API_BASE_URL);
+        // console.log('Login page script loaded');
+        // console.log('API_BASE_URL:', API_BASE_URL);
 
         // Handle login button click
         document.getElementById('loginBtn').addEventListener('click', async () => {
-            console.log('Login button clicked');
+            // console.log('Login button clicked');
             document.getElementById('loginBtn').disabled = true;
             document.getElementById('loadingText').style.display = 'block';
 
@@ -18,7 +18,7 @@ const API_BASE_URL = '<%= apiBaseUrl %>';
                 }
 
                 const data = await response.json();
-                console.log('✓ Received OAuth URL');
+                // console.log('✓ Received OAuth URL');
 
                 // Redirect to Google OAuth
                 window.location.href = data.url;
@@ -46,7 +46,7 @@ const API_BASE_URL = '<%= apiBaseUrl %>';
         }
 
         if (token) {
-            console.log('✓ Received token from callback, redirecting to dashboard');
+            // console.log('✓ Received token from callback, redirecting to dashboard');
             // Redirect to dashboard with token
             window.location.href = `/dashboard?token=${token}`;
         }
