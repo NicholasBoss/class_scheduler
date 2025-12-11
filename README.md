@@ -2,22 +2,13 @@
 This scheduler allows a student to create events in Google Calendar. This can help students manage their time effectively by scheduling study sessions, classes, and other important activities.
 
 ### Setup Instructions
-1. **Clone the Repository:**
+1. **Navigate to:**
    ```bash
-   git clone https://github.com/NicholasBoss/class-scheduler.git
+   https://class-scheduler.org
    ```
-2. **Install Dependencies:**
-   Navigate to the project directory, create a virtual environment, and install the required Python packages:
-   ```bash
-   cd class-scheduler
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
-   pip install -r requirements.txt
-   ```
-3. **Set Up Google Calendar API:**
+2. **Log In:**
+   Click the "Getting Started" button and then the "Log In with Google" button to authenticate using your Google account.
+
+3. **Create Your First Schedule:**
+   Follow the on-screen instructions to create and customize your schedule.
    
-4. **Run the Application:**
-   Start the application:
-   ```bash
-   pnpm run start
-   ```
